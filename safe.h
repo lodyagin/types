@@ -75,6 +75,9 @@ public:
   static constexpr Int min = 
     std::numeric_limits<Int>::min();
 
+  //! The default value is overflow
+  constexpr safe() noexcept : no_ovf(false) {}
+
   explicit constexpr safe(Int av) noexcept
     : safe(av, true) {}
 
@@ -136,7 +139,7 @@ public:
     const Int2 ub = std::abs(b.v);
 
     if (__builtin_expect
-          (highest_bit1(ua) + highest_bit1(ub) > sizeof(Int)*8-1, 0))
+          (highest_bit1(ua) + highest_bit1(ub) > sizeof(Int)*8/2-1, 0))
       no_ovf = false;
     else {
       v *= b.v;
@@ -180,7 +183,8 @@ public:
     return operator*=(safe(b));
   }
 
-  safe& operator /= (safe b) noexcept
+  template<class Int2>
+  safe& operator /= (safe<Int2> b) noexcept
   {
     Int copy = v;
 
@@ -199,7 +203,8 @@ public:
     return operator/=(safe(b));
   }
 
-  safe& operator %= (safe b) noexcept
+  template<class Int2>
+  safe& operator %= (safe<Int2> b) noexcept
   {
     // it seams except for b == 0 this operation is always
     // safe.
@@ -263,7 +268,8 @@ public:
     return copy *= b;
   }
 
-  safe operator / (safe b) const noexcept
+  template<class Int2>
+  safe operator / (safe<Int2> b) const noexcept
   {
     safe<Int> copy(*this);
     return copy /= b;
@@ -363,9 +369,6 @@ protected:
   //! 
   bool rem = false;
 #endif
-
-  //! The default value is overflow
-  constexpr safe() noexcept : no_ovf(false) {}
 
   constexpr safe(Int val, bool no) noexcept
     : v(val), no_ovf(no) {}
