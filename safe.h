@@ -11,9 +11,11 @@
 #ifndef TYPES_SAFE_H
 #define TYPES_SAFE_H
 
+#include <iostream>
 #include <type_traits>
 #include <stdexcept>
 
+namespace curr {
 namespace types {
 
 //! Calculate the number of highest bit in i starting from
@@ -64,6 +66,8 @@ class safe<Int, true, true>
   static_assert( std::is_signed<Int>::value, 
                  "modular_type must be signed" );
 
+  template<class Int2, bool, bool>
+  friend class safe;
 public:
   static constexpr Int max = 
     std::numeric_limits<Int>::max();
@@ -71,13 +75,15 @@ public:
   static constexpr Int min = 
     std::numeric_limits<Int>::min();
 
-  explicit constexpr safe(Int av) : safe(av, true) {}
+  explicit constexpr safe(Int av) noexcept
+    : safe(av, true) {}
 
   safe& operator = (Int av)
   {
     v = av;
     no_ovf = true;
     rem = false;
+    return *this;
   }
 
   /*
@@ -121,15 +127,16 @@ public:
     return operator-=(safe(b));
   }
 
-  safe& operator *= (safe b) noexcept
+  template<class Int2>
+  safe& operator *= (safe<Int2> b) noexcept
   {
     // TODO check what is faster
 #if 1
     const Int ua = std::abs(v);
-    const Int ub = std::abs(b.v);
+    const Int2 ub = std::abs(b.v);
 
     if (__builtin_expect
-          (highest_bit1(ua) + highest_bit1(ub) > 31, 0)) 
+          (highest_bit1(ua) + highest_bit1(ub) > sizeof(Int)*8-1, 0))
       no_ovf = false;
     else {
       v *= b.v;
@@ -249,6 +256,13 @@ public:
     return b *= *this;
   }
 
+  template<class Int2>
+  safe operator * (safe<Int2> b) const noexcept
+  {
+    safe copy(*this);
+    return copy *= b;
+  }
+
   safe operator / (safe b) const noexcept
   {
     safe<Int> copy(*this);
@@ -351,14 +365,15 @@ protected:
 #endif
 
   //! The default value is overflow
-  constexpr safe() : no_ovf(false) {}
+  constexpr safe() noexcept : no_ovf(false) {}
 
-  constexpr safe(Int val, bool no)
+  constexpr safe(Int val, bool no) noexcept
     : v(val), no_ovf(no) {}
 
   //! Inherit status bits, typically from the second
   //! operand of an binary function (e.g. operator+)
-  void inherit_status(const safe<Int>& other)
+  template<class Int2>
+  void inherit_status(const safe<Int2>& other)
   {
     no_ovf = no_ovf && other.no_ovf;
     rem = rem || other.rem;
@@ -431,6 +446,68 @@ safe<I> operator % (I a, safe<I> b) noexcept
   return safe<I>(a) % b;
 }
 
+template <
+  class Int,
+  class CharT,
+  class Traits = std::char_traits<CharT>
+>
+std::basic_ostream<CharT, Traits>&
+operator << 
+  ( std::basic_ostream<CharT, Traits>& out,
+    const safe<Int>& s )
+{
+  return (bool) s ? out << (Int) s : out << "#overflow";
+}
+
+template <
+  class Int,
+  class CharT,
+  class Traits = std::char_traits<CharT>
+>
+std::basic_ostream<CharT, Traits>&
+operator << 
+  ( std::basic_ostream<CharT, Traits>&& out,
+    const safe<Int>& s )
+{
+  return operator <<(out, s);
+}
+
+template <
+  class Int,
+  class CharT,
+  class Traits = std::char_traits<CharT>
+>
+std::basic_istream<CharT, Traits>&
+operator >>
+  ( std::basic_istream<CharT, Traits>& in, safe<Int>& s )
+{
+  Int val;
+  typename std::basic_istream<CharT, Traits>::sentry se(in);
+
+  if (!se)
+    return in;
+
+  in >> val;
+  if (!in.fail())
+    s = safe<Int>(val);
+  else
+    s = safe<Int>::overflow();
+  return in;
+}
+
+template <
+  class Int,
+  class CharT,
+  class Traits = std::char_traits<CharT>
+>
+std::basic_istream<CharT, Traits>&
+operator >> 
+  ( std::basic_istream<CharT, Traits>&& in, safe<Int>& s )
+{
+  return operator >> (in, s);
+}
+
+}
 }
 
 #endif
