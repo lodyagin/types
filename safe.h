@@ -14,6 +14,7 @@
 #include <iostream>
 #include <type_traits>
 #include <stdexcept>
+#include <limits>
 
 namespace curr {
 namespace types {
