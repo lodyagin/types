@@ -36,12 +36,12 @@ namespace curr {
 //! new operator. It will also never call a destructor for
 //! the object.
 template<class T>
-union _externally_constructed
+union externally_constructed
 {
   typedef T type;
 
-  _externally_constructed() {} // it is
-  ~_externally_constructed() {} // never
+  externally_constructed() {} // it is
+  ~externally_constructed() {} // never
   T m;
 };
 
