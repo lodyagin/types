@@ -31,6 +31,8 @@
 #ifndef CONCURRO_TYPES_META_H_
 #define CONCURRO_TYPES_META_H_
 
+#include <type_traits>
+
 namespace curr { namespace types {
 
 //! Check whether flag is true (it is typically a
@@ -45,6 +47,16 @@ using EnableFunIf = typename std::remove_reference <
   decltype(typename std::enable_if<flag>::type(),
   std::declval<RetType>()) 
 > :: type;
+
+//! This is type expression to check whether `base' is a
+//! base of `derived'
+#define CURR_ENABLE_BASE_TYPE(base, derived) \
+  typename std::enable_if \
+    <std::is_base_of<base, derived>::value>::type
+
+//! The quirk to pass a template parameters as an macro
+//! argument 
+#define CURR_TEMPLATE_AND_PARS(templ, pars...) templ<pars>
 
 }}
 
