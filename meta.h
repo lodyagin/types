@@ -1,6 +1,6 @@
 /* -*-coding: mule-utf-8-unix; fill-column: 58; -*-
 
-  Copyright (C) 2009, 2013 Cohors LLC 
+  Copyright (C) 2009, 2013 Sergei Lodyagin 
  
   This file is part of the Cohors Concurro library.
 

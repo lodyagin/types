@@ -5,7 +5,7 @@
  * Arithmetic operations with overflow control
  *
  * @author    Sergei Lodyagin
- * @copyright Copyright (C) 2013 Cohors LLC 
+ * @copyright Copyright (C) 2013 Sergei Lodyagin 
  */
 
 #ifndef TYPES_SAFE_H
