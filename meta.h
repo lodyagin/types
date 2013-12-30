@@ -48,6 +48,16 @@ using EnableFunIf = typename std::remove_reference <
   std::declval<RetType>()) 
 > :: type;
 
+//! Use an idea from here: 
+//! http://www.blogosfera.co.uk/2013/08/sfinae-with-user-extensible-variadic-trait/
+template<class T, class Enable, class = void>
+struct EnableClassIf;
+
+template<class T, class Enable, class... Ts>
+struct EnableClassIf<T(Ts...), Enable, typename Enable::type>;
+//    typename std::enable_if< something< user_defined >::value >::type >;
+
+
 //! This is type expression to check whether `base' is a
 //! base of `derived'
 #define CURR_ENABLE_BASE_TYPE(base, derived) \
