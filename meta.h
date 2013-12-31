@@ -53,8 +53,11 @@ using EnableFunIf = typename std::remove_reference <
 template<class T, class Enable, class = void>
 struct EnableClassIf;
 
-template<class T, class Enable, class... Ts>
-struct EnableClassIf<T(Ts...), Enable, typename Enable::type>;
+template<class T, class Enable> //, class... Ts>
+struct EnableClassIf<
+//  T*(Ts*...), Enable, typename Enable::type
+  T, Enable, typename Enable::type
+> {};
 //    typename std::enable_if< something< user_defined >::value >::type >;
 
 
