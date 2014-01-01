@@ -50,13 +50,13 @@ using EnableFunIf = typename std::remove_reference <
 
 //! Use an idea from here: 
 //! http://www.blogosfera.co.uk/2013/08/sfinae-with-user-extensible-variadic-trait/
-template<class T, class Enable, class = void>
+template</*class T,*/ class Enable, class = void>
 struct EnableClassIf;
 
-template<class T, class Enable> //, class... Ts>
+template</*class T,*/ class Enable> //, class... Ts>
 struct EnableClassIf<
 //  T*(Ts*...), Enable, typename Enable::type
-  T, Enable, typename Enable::type
+  /*T,*/ Enable, typename Enable::type
 > {};
 //    typename std::enable_if< something< user_defined >::value >::type >;
 
