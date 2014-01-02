@@ -35,6 +35,39 @@
 
 namespace curr { namespace types {
 
+#if 0
+namespace {
+
+template<
+  template<class...> class Parent,
+  template<class...> class... Ancestors,
+  class... Ts
+>
+class aggregate_ : public aggregate<Ancestors..., Ts...>
+{
+public:
+  using aggregate<Ancestors..., Ts...>::aggregate;
+};
+
+}
+
+struct end_of_templates {};
+
+template<
+  template<class...> class Parent,
+  template<class...> class... Ancestors,
+  class... Ts
+>
+class aggregate : public aggregate<Ancestors..., Ts...>
+{
+public:
+  using aggregate<Ancestors..., Ts...>::aggregate;
+};
+
+template<template<class...> class Parent, class... Ts>
+class aggregate<Parent, end_of_templates, Ts...>
+#endif
+
 //! Check whether flag is true (it is typically a
 //! metaprogramming predicate with a value member of a
 //! type bool)
@@ -47,19 +80,6 @@ using EnableFunIf = typename std::remove_reference <
   decltype(typename std::enable_if<flag>::type(),
   std::declval<RetType>()) 
 > :: type;
-
-//! Use an idea from here: 
-//! http://www.blogosfera.co.uk/2013/08/sfinae-with-user-extensible-variadic-trait/
-template</*class T,*/ class Enable, class = void>
-struct EnableClassIf;
-
-template</*class T,*/ class Enable> //, class... Ts>
-struct EnableClassIf<
-//  T*(Ts*...), Enable, typename Enable::type
-  /*T,*/ Enable, typename Enable::type
-> {};
-//    typename std::enable_if< something< user_defined >::value >::type >;
-
 
 //! This is type expression to check whether `base' is a
 //! base of `derived'
