@@ -81,6 +81,21 @@ using EnableFunIf = typename std::remove_reference <
   std::declval<RetType>()) 
 > :: type;
 
+//! Iteration over std::touple
+template<template<class> class UnaryFunction, std::size_t I = 0, class... T>
+typename std::enable_if<I == sizeof...(T)>::type
+for_each(std::tuple<T...>&&)
+{
+}
+
+template<template<class> class UnaryFunction, std::size_t I = 0, class... T>
+typename std::enable_if<I < sizeof...(T)>::type
+for_each(std::tuple<T...>&& t)
+{
+  UnaryFunction<>(std::get<I>(std::move(t)));
+  for_each<UnaryFunction, I + 1, T...>(std::move(t));
+}
+
 //! This is type expression to check whether `base' is a
 //! base of `derived'
 #define CURR_ENABLE_BASE_TYPE(base, derived) \
