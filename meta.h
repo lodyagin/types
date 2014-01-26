@@ -82,17 +82,28 @@ using EnableFunIf = typename std::remove_reference <
 > :: type;
 
 //! Iteration over std::touple
-template<template<class> class UnaryFunction, std::size_t I = 0, class... T>
-typename std::enable_if<I == sizeof...(T)>::type
-for_each(std::tuple<T...>&&)
+template<
+  class UnaryFunction, 
+  std::size_t I = 0, 
+  class... T
+>
+typename std::enable_if<I == sizeof...(T), UnaryFunction>
+  ::type
+for_each(std::tuple<T...>&&, UnaryFunction)
 {
 }
 
-template<template<class> class UnaryFunction, std::size_t I = 0, class... T>
+template<
+  class UnaryFunction, 
+  std::size_t I = 0, 
+  class... T
+>
 typename std::enable_if<I < sizeof...(T)>::type
-for_each(std::tuple<T...>&& t)
+for_each(std::tuple<T...>&& t, UnaryFunction)
 {
-  UnaryFunction<>(std::get<I>(std::move(t)));
+  UnaryFunction
+    <typename std::tuple_element<I, decltype(t)>::type>
+      (std::get<I>(std::move(t)));
   for_each<UnaryFunction, I + 1, T...>(std::move(t));
 }
 
