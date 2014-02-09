@@ -83,29 +83,30 @@ using EnableFunIf = typename std::remove_reference <
 
 //! Iteration over std::touple
 template<
-  class UnaryFunction, 
+  //template<class> class UnaryFunction, 
   std::size_t I = 0, 
   class... T
 >
-typename std::enable_if<I == sizeof...(T), UnaryFunction>
-  ::type
-for_each(std::tuple<T...>&&, UnaryFunction)
+//typename std::enable_if<I == sizeof...(T)>::type
+void for_each(const std::tuple<T...>& t)
 {
 }
 
+#if 0
 template<
-  class UnaryFunction, 
+  template<class> class UnaryFunction, 
   std::size_t I = 0, 
   class... T
 >
 typename std::enable_if<I < sizeof...(T)>::type
-for_each(std::tuple<T...>&& t, UnaryFunction)
+for_each(std::tuple<T...>&& t)
 {
   UnaryFunction
     <typename std::tuple_element<I, decltype(t)>::type>
       (std::get<I>(std::move(t)));
   for_each<UnaryFunction, I + 1, T...>(std::move(t));
 }
+#endif
 
 //! This is type expression to check whether `base' is a
 //! base of `derived'
