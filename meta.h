@@ -4,17 +4,17 @@
  
   This file is part of the Cohors Concurro library.
 
-  This library is free software: you can redistribute
-  it and/or modify it under the terms of the GNU Lesser General
-  Public License as published by the Free Software
+  This library is free software: you can redistribute it
+  and/or modify it under the terms of the GNU Lesser
+  General Public License as published by the Free Software
   Foundation, either version 3 of the License, or (at your
   option) any later version.
 
   This library is distributed in the hope that it will be
   useful, but WITHOUT ANY WARRANTY; without even the
   implied warranty of MERCHANTABILITY or FITNESS FOR A
-  PARTICULAR PURPOSE.  See the GNU Lesser General Public License
-  for more details.
+  PARTICULAR PURPOSE.  See the GNU Lesser General Public
+  License for more details.
 
   You should have received a copy of the GNU Lesser General
   Public License along with this program.  If not, see
@@ -33,7 +33,22 @@
 
 #include <type_traits>
 
-namespace curr { namespace types {
+namespace curr { 
+
+//! Check whether `Check' is true (it is typically a
+//! metaprogramming predicate with a value member of a
+//! type bool)
+//!
+//! template<class T>
+//! auto fun(...) -> 
+//! EnableFunIf(is_same<T, QString>, FunReturnType)&
+template<class Check, class RetType>
+using EnableFunIf = typename std::remove_reference <
+  decltype(typename std::enable_if<Check::value>::type(),
+  std::declval<RetType>()) 
+> :: type;
+
+namespace types {
 
 #if 0
 namespace {
@@ -67,19 +82,6 @@ public:
 template<template<class...> class Parent, class... Ts>
 class aggregate<Parent, end_of_templates, Ts...>
 #endif
-
-//! Check whether flag is true (it is typically a
-//! metaprogramming predicate with a value member of a
-//! type bool)
-//!
-//! template<class T>
-//! auto fun(...) -> 
-//! EnableFunIf(is_same<T, QString>::value, FunReturnType)&
-template<bool flag, class RetType>
-using EnableFunIf = typename std::remove_reference <
-  decltype(typename std::enable_if<flag>::type(),
-  std::declval<RetType>()) 
-> :: type;
 
 //! Iteration over std::touple
 template<
