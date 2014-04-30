@@ -41,10 +41,23 @@ namespace curr {
 //!
 //! template<class T>
 //! auto fun(...) -> 
-//! EnableFunIf(is_same<T, QString>, FunReturnType)&
+//! enable_fun_if(is_same<T, QString>, FunReturnType)&
 template<class Check, class RetType>
-using EnableFunIf = typename std::remove_reference <
+using enable_fun_if = typename std::remove_reference <
   decltype(typename std::enable_if<Check::value>::type(),
+  std::declval<RetType>()) 
+> :: type;
+
+//! Check whether `Check' is false (it is typically a
+//! metaprogramming predicate with a value member of a
+//! type bool)
+//!
+//! template<class T>
+//! auto fun(...) -> 
+//! enable_fun_if_not(is_same<T, QString>, FunReturnType)&
+template<class Check, class RetType>
+using enable_fun_if_not = typename std::remove_reference <
+  decltype(typename std::enable_if<!Check::value>::type(),
   std::declval<RetType>()) 
 > :: type;
 
