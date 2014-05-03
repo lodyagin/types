@@ -30,13 +30,14 @@
  * @copyright Copyright (C) 2013 Cohors LLC 
  */
 
-#include <cstdint>
 #include <ostream>
+#include <cstdint>
 #include <utility>
 #include <chrono>
 #include <ratio>
 #include <ctime>
 #include <iomanip>
+#include <tuple>
 
 #ifndef CONCURRO_TYPES_TIME_H_
 #define CONCURRO_TYPES_TIME_H_
@@ -129,7 +130,7 @@ To round_down(const std::chrono::duration<Rep, Period>& d)
     return t;
 }
 
-}
+} // howard_hinnant
 
 //! Converts std::chrono::time_point<system_clock> to
 //! std::tm in UTC. Great thanks to Howard Hinnant,
@@ -160,7 +161,7 @@ std::tm make_utc_tm(
     std::tie(year, month, day) = 
       howard_hinnant::civil_from_days(d.count());
     // start filling in the tm with calendar info
-    std::tm tm = {0};
+    std::tm tm = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     tm.tm_year = year - 1900;
     tm.tm_mon = month - 1;
     tm.tm_mday = day;
@@ -175,7 +176,7 @@ std::tm make_utc_tm(
     return tm;
 }
 
-}
+} // time
 
 //! seconds from the last midnight
 template < 
@@ -192,8 +193,6 @@ TDur seconds_since_midnight
         % std::chrono::hours(24);
 }
 
-#if 0 // TODO
-
 template<
   class CharT, 
   class Clock,
@@ -202,23 +201,44 @@ template<
 >
 struct put_time_t
 {
+  using time_point = std::chrono::time_point<Clock, Duration>;
+
+  put_time_t(const time_point& p, const CharT(&f)[N]) 
+    : point(p), format(f) {}
+
+  const time_point point;
+  const CharT* format;
 };
 
-std::ostream&
-operator<< (std::ostream& out, put_time_t&& t)
+template<
+  class CharT, 
+  class Clock,
+  class Duration = typename Clock::duration,
+  uint8_t N = 0
+>
+std::ostream& operator<<(
+  std::ostream& out, 
+  put_time_t<CharT, Clock, Duration, N>&& t
+)
 {
-  
-}
+  const std::tm tmp = time::make_utc_tm(t.point);
+  using iterator = std::ostreambuf_iterator<char>;
+  using time_put = std::time_put<char, iterator>;
+  const time_put& tp= std::use_facet<time_put>(out.getloc());
+  const iterator end = tp.put(
+    iterator(out.rdbuf()), 
+    out, 
+    out.fill(), 
+    &tmp,
+    t.format,
+    t.format 
+      + std::char_traits<char>::length(t.format)
+  );
 
-template <class charT, class traits>
-void f(basic_ios<charT, traits>& str, const struct tm* tmb, const charT* fmt) {
-  typedef ostreambuf_iterator<charT, traits> Iter;
-  typedef time_put<charT, Iter> TimePut;
-  const TimePut& tp = use_facet<TimePut>(str.getloc());
-  const Iter end = tp.put(Iter(str.rdbuf()), str, str.fill(), tmb,
-    fmt, fmt + traits::length(fmt));
   if (end.failed())
-    str.setstate(ios_base::badbit);
+    out.setstate(std::ios_base::badbit);
+
+  return out;
 }
 
 template<
@@ -227,13 +247,15 @@ template<
   class Duration = typename Clock::duration,
   uint8_t N = 0
 >
-put_time_t put_time(
-  const time_point& time, 
-  const char(&format)[N]
-);
-
-#endif
-
+put_time_t<CharT, Clock, Duration, N> 
+put_time(
+  const std::chrono::time_point<Clock, Duration>& time, 
+  const CharT(&format)[N]
+)
+{
+  return put_time_t<CharT, Clock, Duration, N>
+    (time, format);
+}
 
 namespace types {
 
