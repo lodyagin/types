@@ -61,6 +61,45 @@ using enable_fun_if_not = typename std::remove_reference <
   std::declval<RetType>()) 
 > :: type;
 
+namespace tuple {
+
+// tuple -> Args...
+// Thanks to Johannes Schaub
+// http://stackoverflow.com/a/7858971
+
+template<int...>
+struct seq { };
+
+template<int N, int... S>
+struct gens : gens<N-1, N-1, S...> { };
+
+template<int... S>
+struct gens<0, S...> {
+  typedef seq<S...> type;
+};
+
+template<class Fun, class Tuple, int... S>
+auto call_(seq<S...>, const Pars& pars)
+  -> decltype(Fun(std::get<S>(Tuple)...))
+{
+  Fun(std::get<S>(Tuple)...);
+}
+
+template<class Fun, class Tuple>
+auto call(const Tuple& pars) 
+  -> decltype(
+    call_(
+      typename gens<std::tuple_size<Tuple>::value>::type()
+    )
+  );
+{
+  call_(
+	 typename gens<std::tuple_size<Tuple>::value>::type()
+  );
+}
+ 
+} // tuple
+
 namespace types {
 
 #if 0
