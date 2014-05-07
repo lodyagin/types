@@ -80,23 +80,49 @@ struct gens<0, S...> {
 
 template<class Fun, class Tuple, int... S>
 auto call_(seq<S...>, const Tuple& tup)
-  -> decltype(Fun::Fun(std::get<S>(tup)...))
+  -> decltype(Fun(std::get<S>(tup)...))
 {
-  Fun(std::get<S>(tup)...);
+  return Fun(std::get<S>(tup)...);
 }
 
 template<class Fun, class Tuple>
 auto call(const Tuple& pars) 
   -> decltype(
-    call_(
-      typename gens<std::tuple_size<Tuple>::value>::type()
+    call_<Fun>(
+      typename gens<std::tuple_size<Tuple>::value>::type(),
+      pars
     )
   )
 {
-  call_(
-	 typename gens<std::tuple_size<Tuple>::value>::type()
+  return call_<Fun>(
+    typename gens<std::tuple_size<Tuple>::value>::type(),
+    pars
   );
 }
+
+template<class Type, class Tuple, int... S>
+auto aggregate_construct_(seq<S...>, const Tuple& tup)
+  -> decltype(Type{std::get<S>(tup)...})
+{
+  return Type{std::get<S>(tup)...};
+}
+
+template<class Type, class Tuple>
+auto aggregate_construct(const Tuple& pars) 
+  -> decltype(
+    aggregate_construct_<Type>(
+      typename gens<std::tuple_size<Tuple>::value>::type(),
+      pars
+    )
+  )
+{
+  return aggregate_construct_<Type>(
+    typename gens<std::tuple_size<Tuple>::value>::type(),
+    pars
+  );
+}
+
+
  
 } // tuple
 
