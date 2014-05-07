@@ -79,10 +79,10 @@ struct gens<0, S...> {
 };
 
 template<class Fun, class Tuple, int... S>
-auto call_(seq<S...>, const Pars& pars)
-  -> decltype(Fun(std::get<S>(Tuple)...))
+auto call_(seq<S...>, const Tuple& tup)
+  -> decltype(Fun::Fun(std::get<S>(tup)...))
 {
-  Fun(std::get<S>(Tuple)...);
+  Fun(std::get<S>(tup)...);
 }
 
 template<class Fun, class Tuple>
@@ -91,7 +91,7 @@ auto call(const Tuple& pars)
     call_(
       typename gens<std::tuple_size<Tuple>::value>::type()
     )
-  );
+  )
 {
   call_(
 	 typename gens<std::tuple_size<Tuple>::value>::type()
