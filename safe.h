@@ -15,26 +15,90 @@
 #include <type_traits>
 #include <stdexcept>
 #include <limits>
+#include <cmath>
+#include "types/exception.h"
+#include "types/typeinfo.h"
 
-namespace curr {
 namespace types {
 
-//! Calculate the number of highest bit in i starting from
-//! 1. Return 0 if i == 0.
-template <
-  class UInt,
-  // have no sence for signed, 
-  // its disabled to catch logic error in your program
-  bool = std::is_unsigned<UInt>::value 
->
-int highest_bit1(UInt i)
+template<class UInt, class = void>
+struct bits;
+
+template<>
+struct bits<unsigned int>
 {
+  //! Calculate the number of highest bit in i starting from
+  //! 1. Return 0 if i == 0.
+  static unsigned highest_1(unsigned i)
+  {
+    return i
+      ? sizeof(i) * 8 - __builtin_clz(i)
+      : 0;
+  }
+};
+
+template<>
+struct bits<unsigned long>
+{
+  //! Calculate the number of highest bit in i starting from
+  //! 1. Return 0 if i == 0.
+  static unsigned highest_1(unsigned long i)
+  {
+    return i
+      ? sizeof(i) * 8 - __builtin_clzl(i)
+      : 0;
+  }
+};
+
+template<>
+struct bits<unsigned long long>
+{
+  //! Calculate the number of highest bit in i starting from
+  //! 1. Return 0 if i == 0.
+  static unsigned highest_1(unsigned long long i)
+  {
+    return i
+      ? sizeof(i) * 8 - __builtin_clzll(i)
+      : 0;
+  }
+};
+
+#if 0
+template<>
+struct bits<
+  UInt,
+  typename std::enable_if<
+    std::is_integral<UInt>::value, 
+    // have no sence for signed, and so
+    // disabled to catch logic error in your program
+    std::is_unsigned<UInt>::value
+  >::type
+>
+{
+  //! Calculate the number of highest bit in i starting from
+  //! 1. Return 0 if i == 0.
+  static unsigned highest_1(UInt i)
+  {
+  }
+}
+#endif
+
+template <class UInt>
+unsigned highest_bit1(UInt i)
+{
+#if 1 // using GCC builtin
+  return bits<UInt>::highest_1(i);
+#else
   int res;
   // TODO check with assembly
   for (res = 0; i != 0; i >>= 1, ++res)
     ;
   return res;
+#endif
 }
+
+//! @exception overflow (for any safe<T> type)
+struct overflow_error : virtual std::exception {};
 
 //! Not defined for not integral and unsigned integral types
 template <
@@ -76,11 +140,51 @@ public:
   static constexpr Int min = 
     std::numeric_limits<Int>::min();
 
+  //! @exception overflow for this safe<Int> type only
+  struct overflow_error : types::overflow_error {};
+
   //! The default value is overflow
   constexpr safe() noexcept : no_ovf(false) {}
 
-  explicit constexpr safe(Int av) noexcept
-    : safe(av, true) {}
+  constexpr safe(short av) noexcept
+    : safe((Int) av, av == (Int) av)
+  {}
+
+  constexpr safe(unsigned short av) noexcept
+    : safe((Int) av, av == (Int) av && (short) av >= 0)
+  {}
+
+  constexpr safe(int av) noexcept
+    : safe((Int) av, av == (Int) av)
+  {}
+
+  constexpr safe(unsigned av) noexcept
+    : safe((Int) av, av == (Int) av && (int) av >= 0)
+  {}
+
+  constexpr safe(long av) noexcept
+    : safe((Int) av, av == (Int) av)
+  {}
+
+  constexpr safe(unsigned long av) noexcept
+    : safe((Int) av, av == (Int) av && (long) av >= 0)
+  {}
+
+  constexpr safe(long long av) noexcept
+    : safe(av, av == (Int) av) 
+  {}
+
+  constexpr safe(unsigned long long av) noexcept
+    : safe(av, (long long) av == (Int) av && (long long) av >= 0)
+  {}
+
+  explicit constexpr safe(long double ld) noexcept
+    : safe((Int) ld, std::fabs(ld - (Int) ld) < 0.5)
+  {}
+
+  safe(const safe& o) 
+    : v(o.v), no_ovf(o.no_ovf), rem(o.rem)
+  {}
 
   safe& operator = (Int av)
   {
@@ -88,6 +192,23 @@ public:
     no_ovf = true;
     rem = false;
     return *this;
+  }
+
+  safe& operator = (const safe& o)
+  {
+    v = o.v;
+    no_ovf = o.no_ovf;
+    rem = o.rem;
+    return *this;
+  }
+
+  //! Return an absolute value
+  safe abs() const noexcept
+  {
+    safe copy(*this);
+    if (copy.v < 0)
+      copy.v = -copy.v;
+    return copy;
   }
 
   /*
@@ -136,11 +257,18 @@ public:
   {
     // TODO check what is faster
 #if 1
-    const Int ua = std::abs(v);
-    const Int2 ub = std::abs(b.v);
+    const typename std::make_unsigned<Int>::type ua = 
+      std::abs(v);
+    const typename std::make_unsigned<Int2>::type ub = 
+      std::abs(b.v);
 
-    if (__builtin_expect
-          (highest_bit1(ua) + highest_bit1(ub) > sizeof(Int)*8/2-1, 0))
+    if (__builtin_expect(
+          highest_bit1(ua) + highest_bit1(ub) >
+            ( std::is_signed<Int>::value 
+                ? sizeof(Int) * 8 - 1 : sizeof(Int) * 8
+            ),
+          0
+        ))
       no_ovf = false;
     else {
       v *= b.v;
@@ -179,9 +307,10 @@ public:
     return *this;
   }
 
-  safe& operator *= (Int b) noexcept
+  template<class Int2>
+  safe& operator *= (Int2 b) noexcept
   {
-    return operator*=(safe(b));
+    return operator*=(safe<Int2>(b));
   }
 
   template<class Int2>
@@ -194,7 +323,7 @@ public:
     // checked in operator %=
   
     rem = rem || v != 0;
-    v = copy; // NB no_ovf is the same
+    v = copy / b.v; // NB no_ovf is the same
     
     return *this;
   }
@@ -243,8 +372,8 @@ public:
   {
     using namespace std;
     return safe
-      (v, (abs(min) <= abs(max) || v != min)
-       && (abs(max) <= abs(min) || v != max));
+      (-v, (std::abs(min) <= std::abs(max) || v != min)
+       && (std::abs(max) <= std::abs(min) || v != max));
   }
 
   safe operator + (safe b) const noexcept
@@ -254,7 +383,8 @@ public:
 
   safe operator - (safe b) const noexcept
   {
-    return b -= *this;
+//    safe c(*this);
+    return (-b) += *this;
   }
 
   safe operator * (safe b) const noexcept
@@ -317,10 +447,68 @@ public:
     return v >= b.v;
   }
 
-  explicit operator Int () const
+  explicit operator short() const
   {
-    throw_overflow();
-    return v;
+    const bool no_ovf2 = 
+      v <= std::numeric_limits<short>::max();
+    throw_overflow(no_ovf2);
+    return (short) v;
+  }
+
+  explicit operator unsigned short() const
+  {
+    const bool no_ovf2 = v >= 0 &&
+      v <= std::numeric_limits<unsigned short>::max();
+    throw_overflow(no_ovf2);
+    return (unsigned short) v;
+  }
+
+  explicit operator int() const
+  {
+    const bool no_ovf2 =
+      v <= std::numeric_limits<int>::max();
+    throw_overflow(no_ovf2);
+    return (int) v;
+  }
+
+  explicit operator unsigned int() const
+  {
+    const bool no_ovf2 = v >= 0 &&
+      v <= std::numeric_limits<unsigned int>::max();
+    throw_overflow(no_ovf2);
+    return (unsigned int) v;
+  }
+
+  explicit operator long() const
+  {
+    const bool no_ovf2 = 
+      v <= std::numeric_limits<long>::max();
+    throw_overflow(no_ovf2);
+    return (long) v;
+  }
+
+  explicit operator unsigned long() const
+  {
+    const bool no_ovf2 = v >= 0 &&
+      v <= std::numeric_limits<unsigned long>::max();
+    throw_overflow(no_ovf2);
+    return (unsigned long) v;
+  }
+
+  explicit operator long long() const
+  {
+    const bool no_ovf2 = 
+      v <= std::numeric_limits<long long>::max();
+    throw_overflow(no_ovf2);
+    return (long long) v;
+  }
+
+  explicit operator unsigned long long() const
+  {
+    const bool no_ovf2 = v >= 0 &&
+      v <= std::numeric_limits<unsigned long long>::max();
+    throw_overflow(no_ovf2);
+    return (unsigned long long) v;
   }
 
   explicit operator long double () const
@@ -338,7 +526,7 @@ public:
     return safe(); 
   }
 
-  constexpr bool lost_precision() 
+  constexpr bool lost_precision() const
   {
     return rem;
   }
@@ -348,13 +536,6 @@ public:
   bool lost_precision(bool lp) noexcept
   {
     return rem = rem || lp;
-  }
-
-  static const std::exception& overflow_exception()
-  {
-    static std::overflow_error
-      exc("class safe: unchecked overflow");
-    return exc;
   }
 
 protected:
@@ -383,10 +564,12 @@ protected:
     rem = rem || other.rem;
   }
 
-  void throw_overflow() const
+  void throw_overflow(bool no_ovf2 = true) const
   {
-    if (__builtin_expect(!no_ovf, 0))
-      throw overflow_exception;
+    if (__builtin_expect(!(no_ovf && no_ovf2), 0))
+      throw types::exception<overflow_error>(
+        "class safe: unchecked overflow"
+      );
   }
 };
 
@@ -511,7 +694,6 @@ operator >>
   return operator >> (in, s);
 }
 
-}
-}
+} // types
 
 #endif

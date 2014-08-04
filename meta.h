@@ -32,6 +32,8 @@
 #define CONCURRO_TYPES_META_H_
 
 #include <type_traits>
+#include <tuple>
+#include <utility>
 
 namespace curr { 
 
@@ -198,6 +200,26 @@ for_each(std::tuple<T...>&& t)
 //! argument 
 #define CURR_TEMPLATE_AND_PARS(templ, pars...) templ<pars>
 
-}}
+#if 0
+template<class C, class Enable = void>
+struct ctr_args;
+
+
+template<class C>
+struct ctr_args<C, decltype(C())>
+{
+  static constexpr int n = 0;
+};
+
+template<class C, class A1>
+struct ctr_args<C, decltype(C(std::declval<A1>()))>
+{
+  using tuple = std::tuple<A1>;
+  static constexpr int n = 1;
+};
+#endif
+
+} // types
+} // curr
 
 #endif
