@@ -13,6 +13,7 @@
 #define COHORS_TYPES_TYPEINFO_H
 
 #include <typeinfo>
+#include <typeindex>
 #ifndef _WIN32
 #include <cxxabi.h>
 #endif
@@ -20,18 +21,15 @@
 
 namespace types {
 
-//! Return the demangled Type name
-template<class Type, int16_t MaxLen = 40>
-struct type
+//! Returns a demangled Type name
+inline std::string demangled_name(
+  const std::type_index& idx
+)
 {
-  static constexpr int16_t max_len = MaxLen;
-
-  static std::string name()
-  {
 #ifndef _WIN32
     // Demangle the name by the ABI rules
     int status;
-    const char* mangled = typeid(Type).name();
+    const char* mangled = idx.name();
     char* name = abi::__cxa_demangle
       (mangled, nullptr, nullptr, &status);
     if (status == 0) {
@@ -46,25 +44,64 @@ struct type
 #else
     return typeid(Type).name();
 #endif
+}
+
+//! Returns a demangled Type name
+inline std::string demangled_name(
+  const std::type_info& info
+)
+{
+  return demangled_name(std::type_index(info));
+}
+
+#if 0
+template<int16_t MaxLen>
+inline auto_string<MaxLen> mangled_name(
+  const std::type_index& idx
+)
+{
+   const std::string name = idx.name();
+   return auto_string<MaxLen>(
+     // get the last (most informative) part of the name
+     std::max(name.begin(), name.end() - name.size()),
+     name.end()
+   );
+}
+
+template<int16_t MaxLen>
+inline auto_string<MaxLen> mangled_name(
+  const std::type_info& info
+)
+{
+  return mangled_name<MaxLen>(std::type_index(info));
+}
+#endif
+
+template<class Type/*, int16_t MaxLen = 40*/>
+struct type
+{
+//  static constexpr int16_t max_len = MaxLen;
+
+  //! Returns a demangled Type name
+  static std::string name()
+  {
+    return ::types::demangled_name(typeid(Type));
   }
 
   //! For use in context where no dynamic memory
   //! operations are desirable (e.g., throwing an
   //! exception). 
-  static auto_string<max_len> mangled_name()
+  static const char* mangled_name()
   {
-    const std::string name = typeid(Type).name();
-    return auto_string<max_len>(
-      // get the last (most informative) part of the name
-      std::max(name.begin(), name.end() - name.size()),
-      name.end()
-    );
+    return typeid(Type).name();
   }
 
+#if 0
   operator auto_string<max_len>() const
   {
     return mangled_name();
   }
+#endif
 };
 
 } // types

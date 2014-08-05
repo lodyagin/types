@@ -12,7 +12,7 @@
 #ifndef COHORS_TYPES_STRING_H
 #define COHORS_TYPES_STRING_H
 
-#include <ios>
+#include <iostream>
 #include <streambuf>
 #include <string>
 #include <array>
@@ -176,137 +176,6 @@ public:
 
 } // iterators_
 
-/**
- * Just basic_constexpr_string. It is used for "wrap"
- * string literals and not pass strings with unpredicted
- * length to other functions (e.g., streams).
- */
-template <
-  class CharT,
-  class Traits = std::char_traits<CharT>
-> 
-class basic_constexpr_string 
-{
-public:
-  typedef uint32_t size_type;
-  typedef CharT value_type;
-  typedef Traits traits_type;
-
-  template<std::uint32_t N>
-  constexpr basic_constexpr_string(const char(&str)[N])
-    : len(N-1), arr(str)
-  {
-  }
-
-  constexpr size_type size() const { return len; }
-
-  constexpr const value_type* data() const 
-  { 
-    return arr; 
-  }
-
-  constexpr const value_type* c_str() const 
-  { 
-    return arr; 
-  }
-
-  const value_type* begin() const
-  {
-    return arr;
-  }
-
-  const value_type* end() const
-  {
-    return arr + len;
-  }
-
-private:
-  const size_type len;
-  const value_type* const arr;
-};
-
-typedef basic_constexpr_string<char> constexpr_string;
-typedef basic_constexpr_string<wchar_t> constexpr_wstring;
-
-/**
- * It is usefull for parsing template literal operators.
- */
-template <
-  class CharT,
-  class Traits = std::char_traits<CharT>,
-  CharT...
-> 
-class basic_meta_string;
-
-template <
-  class CharT,
-  class Traits
-> 
-class basic_meta_string<CharT, Traits>
-{
-public:
-  typedef uint16_t size_type;
-  typedef CharT value_type;
-  typedef Traits traits_type;
-
-  constexpr static size_type size() { return 0; }
-
-  operator std::string() const
-  {
-    return std::string();
-  }
-
-  template<class OutputIt>
-  static void copy_to(OutputIt out)
-  {
-  }
-};
-
-template <
-  class CharT,
-  class Traits,
-  CharT C0,
-  CharT... CS
-> 
-class basic_meta_string<CharT, Traits, C0, CS...>
-  : public basic_meta_string<CharT, Traits, CS...>
-{
-  using parent = basic_meta_string<CharT, Traits, CS...>;
-public:
-  typedef uint16_t size_type;
-  typedef CharT value_type;
-  typedef Traits traits_type;
-
-  constexpr static size_type size()
-  { 
-    return parent::size() + 1;
-  }
-
-  operator std::string() const
-  {
-    std::string res(size(), '\0');
-    copy_to(res.begin());
-    return res;
-  }
-
-  //! Copy the string to the output iterator
-  template<class OutputIt>
-  static void copy_to(OutputIt out)
-  {
-    *out++ = C0;
-    parent::copy_to(out);
-  }
-};
-
-template<char... cs>
-using meta_string = basic_meta_string
-  <char, std::char_traits<char>, cs...>;
-
-template<wchar_t... wcs>
-using meta_wstring = basic_meta_string
-  <wchar_t, std::char_traits<wchar_t>, wcs...>;
-
-
 template<
   class CharT,
   class Traits = std::char_traits<CharT>
@@ -341,6 +210,14 @@ class basic_auto_string
     N > 0, 
     "types::basic_auto_string: invalid size"
   );
+
+/*
+protected:
+  using std_string = std::basic_string<CharT, Traits>;
+
+  using std_string_const_iterator = typename
+    std_string::const_iterator;
+*/
 
 public:
   using traits_type = Traits;
@@ -378,8 +255,28 @@ public:
       *++cur_end = 0;
   }
 
-  basic_auto_string(const std::string str) noexcept
-    : basic_auto_string(str.c_str())
+  template<class Iterator>
+  basic_auto_string(
+    Iterator bg,
+    Iterator en
+  ) noexcept
+    : cur_end(begin())
+  {
+    int i = 0;
+    for (auto src = bg; 
+         i < N && src < en; 
+         ++i, ++src, ++cur_end
+         )
+      *cur_end = *src;
+
+    if (i < N)
+      *++cur_end = 0;
+  }
+
+  basic_auto_string(
+    const std::basic_string<CharT, Traits>& str
+  ) noexcept
+    : basic_auto_string(str.begin(), str.end())
   {
   }
 
@@ -633,6 +530,207 @@ using auto_stringbuf = basic_auto_stringbuf<char, N>;
 
 template<int16_t N>
 using auto_wstringbuf = basic_auto_stringbuf<wchar_t, N>;
+
+/**
+ * Just basic_constexpr_string. It is used for "wrap"
+ * string literals and not pass strings with unpredicted
+ * length to other functions (e.g., streams).
+ */
+template <
+  class CharT,
+  class Traits = std::char_traits<CharT>
+> 
+class basic_constexpr_string 
+{
+public:
+  typedef uint32_t size_type;
+  typedef CharT value_type;
+  typedef Traits traits_type;
+
+  template<std::uint32_t N>
+  constexpr basic_constexpr_string(const char(&str)[N])
+    : len(N-1), arr(str)
+  {
+  }
+
+  constexpr size_type size() const { return len; }
+
+  constexpr const value_type* data() const 
+  { 
+    return arr; 
+  }
+
+  constexpr const value_type* c_str() const 
+  { 
+    return arr; 
+  }
+
+  const value_type* begin() const
+  {
+    return arr;
+  }
+
+  const value_type* end() const
+  {
+    return arr + len;
+  }
+
+  operator std::basic_string<CharT, Traits>() const
+  {
+    return std::string(arr, len);
+  }
+
+  template<int16_t N>
+  operator basic_auto_string<CharT, N, Traits>() const
+  {
+    return basic_auto_string<CharT, N, Traits>(
+      arr, arr + len
+    );
+  }
+
+  bool operator==(basic_constexpr_string o) const
+  {
+    return len == o.len
+      && (arr == o.arr
+          || traits_type::compare(arr, o.arr, len) == 0
+          );
+  }
+
+  bool operator!=(basic_constexpr_string o) const
+  {
+    return !operator==(o);
+  }
+
+  bool operator<(basic_constexpr_string o) const
+  {
+    const int res = traits_type::compare(
+      arr,
+      o.arr,
+      std::min(len, o.len)
+    );
+    if (__builtin_expect(res == 0, 0))
+      return len < o.len;
+    else
+      return res < 0;
+  }
+
+  bool operator>(basic_constexpr_string o) const
+  {
+    const int res = traits_type::compare(
+      arr,
+      o.arr,
+      std::min(len, o.len)
+    );
+    if (__builtin_expect(res == 0, 0))
+      return len > o.len;
+    else
+      return res > 0;
+  }
+
+  bool operator<=(basic_constexpr_string o) const
+  {
+    return !operator>(o);
+  }
+
+  bool operator>=(basic_constexpr_string o) const
+  {
+    return !operator<(o);
+  }
+
+private:
+  /*const*/ size_type len;
+  const value_type* /*const*/ arr;
+};
+
+typedef basic_constexpr_string<char> constexpr_string;
+typedef basic_constexpr_string<wchar_t> constexpr_wstring;
+
+template<class CharT, class Traits>
+std::basic_ostream<CharT, Traits>& operator<<(
+  std::basic_ostream<CharT, Traits>& out, 
+  basic_constexpr_string<CharT, Traits> str
+)
+{
+  return out.write(str.data(), str.size());
+}
+
+/**
+ * It is usefull for parsing template literal operators.
+ */
+template <
+  class CharT,
+  class Traits = std::char_traits<CharT>,
+  CharT...
+> 
+class basic_meta_string;
+
+template <
+  class CharT,
+  class Traits
+> 
+class basic_meta_string<CharT, Traits>
+{
+public:
+  typedef uint16_t size_type;
+  typedef CharT value_type;
+  typedef Traits traits_type;
+
+  constexpr static size_type size() { return 0; }
+
+  operator std::string() const
+  {
+    return std::string();
+  }
+
+  template<class OutputIt>
+  static void copy_to(OutputIt out)
+  {
+  }
+};
+
+template <
+  class CharT,
+  class Traits,
+  CharT C0,
+  CharT... CS
+> 
+class basic_meta_string<CharT, Traits, C0, CS...>
+  : public basic_meta_string<CharT, Traits, CS...>
+{
+  using parent = basic_meta_string<CharT, Traits, CS...>;
+public:
+  typedef uint16_t size_type;
+  typedef CharT value_type;
+  typedef Traits traits_type;
+
+  constexpr static size_type size()
+  { 
+    return parent::size() + 1;
+  }
+
+  operator std::string() const
+  {
+    std::string res(size(), '\0');
+    copy_to(res.begin());
+    return res;
+  }
+
+  //! Copy the string to the output iterator
+  template<class OutputIt>
+  static void copy_to(OutputIt out)
+  {
+    *out++ = C0;
+    parent::copy_to(out);
+  }
+};
+
+template<char... cs>
+using meta_string = basic_meta_string
+  <char, std::char_traits<char>, cs...>;
+
+template<wchar_t... wcs>
+using meta_wstring = basic_meta_string
+  <wchar_t, std::char_traits<wchar_t>, wcs...>;
 
 } // types
 
