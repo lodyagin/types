@@ -21,7 +21,7 @@
 namespace types {
 
 //! Return the demangled Type name
-template<class Type, int16_t MaxLen = 32>
+template<class Type, int16_t MaxLen = 40>
 struct type
 {
   static constexpr int16_t max_len = MaxLen;
@@ -53,7 +53,12 @@ struct type
   //! exception). 
   static auto_string<max_len> mangled_name()
   {
-    return auto_string<max_len>(typeid(Type).name());
+    const std::string name = typeid(Type).name();
+    return auto_string<max_len>(
+      // get the last (most informative) part of the name
+      std::max(name.begin(), name.end() - name.size()),
+      name.end()
+    );
   }
 
   operator auto_string<max_len>() const

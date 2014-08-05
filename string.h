@@ -177,7 +177,7 @@ public:
 } // iterators_
 
 /**
- * Just constexpr_basic_string. It is used for "wrap"
+ * Just basic_constexpr_string. It is used for "wrap"
  * string literals and not pass strings with unpredicted
  * length to other functions (e.g., streams).
  */
@@ -185,7 +185,7 @@ template <
   class CharT,
   class Traits = std::char_traits<CharT>
 > 
-class constexpr_basic_string 
+class basic_constexpr_string 
 {
 public:
   typedef uint32_t size_type;
@@ -193,7 +193,7 @@ public:
   typedef Traits traits_type;
 
   template<std::uint32_t N>
-  constexpr constexpr_basic_string(const char(&str)[N])
+  constexpr basic_constexpr_string(const char(&str)[N])
     : len(N-1), arr(str)
   {
   }
@@ -225,8 +225,8 @@ private:
   const value_type* const arr;
 };
 
-typedef constexpr_basic_string<char> constexpr_string;
-typedef constexpr_basic_string<wchar_t> constexpr_wstring;
+typedef basic_constexpr_string<char> constexpr_string;
+typedef basic_constexpr_string<wchar_t> constexpr_wstring;
 
 /**
  * It is usefull for parsing template literal operators.

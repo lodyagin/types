@@ -213,22 +213,22 @@ public:
   }
 };
 
-#define COHORS_TYPES_COMPOUND_MESSAGE_SIGNED_INT(type)  \
+#define COHORS_TYPES_COMPOUND_MESSAGE_SIGNED_INT(Int)  \
 template<>                                              \
-struct len_t<type>                                      \
+struct len_t<Int>                                      \
 {                                                       \
   static constexpr size_t max_length =                  \
-    std::numeric_limits<type>::digits10                 \
+    std::numeric_limits<Int>::digits10                 \
     + 1 /*possible sign*/;                              \
 };                                                      \
                                                         \
 template<class OutIt, int idx>                          \
-class stringifier_t<OutIt, idx, type>                   \
+class stringifier_t<OutIt, idx, Int>                   \
 {                                                       \
 public:                                                 \
   using char_type = typename OutIt::char_type;          \
                                                         \
-  stringifier_t(type v) noexcept : val(std::move(v)) {}            \
+  stringifier_t(Int v) noexcept : val(v) {}            \
                                                         \
   void stringify(OutIt out, std::ios_base& st)          \
     const noexcept                                      \
@@ -244,24 +244,24 @@ public:                                                 \
   }                                                     \
                                                         \
 protected:                                              \
-  type val;                                       \
+  typename std::remove_reference<Int>::type val;                                       \
 };
 
-#define COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT(type) \
+#define COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT(Int) \
 template<>                                              \
-struct len_t<type>                                      \
+struct len_t<Int>                                      \
 {                                                       \
   static constexpr size_t max_length =                  \
-    std::numeric_limits<type>::digits10;                \
+    std::numeric_limits<Int>::digits10;                \
 };                                                      \
                                                         \
 template<class OutIt, int idx>                          \
-class stringifier_t<OutIt, idx, type>                   \
+class stringifier_t<OutIt, idx, Int>                   \
 {                                                       \
 public:                                                 \
   using char_type = typename OutIt::char_type;          \
                                                         \
-  stringifier_t(type v) noexcept : val(std::move(v)) {}            \
+  stringifier_t(Int v) noexcept : val(v) {}            \
                                                         \
   void stringify(OutIt out, std::ios_base& st)          \
     const noexcept                                      \
@@ -277,13 +277,13 @@ public:                                                 \
   }                                                     \
                                                         \
 protected:                                              \
-  type val;                                       \
+  typename std::remove_reference<Int>::type val;                                       \
 };
 
-//COHORS_TYPES_COMPOUND_MESSAGE_SIGNED_INT(short);
-//COHORS_TYPES_COMPOUND_MESSAGE_SIGNED_INT(int);
-//COHORS_TYPES_COMPOUND_MESSAGE_SIGNED_INT(long);
-//COHORS_TYPES_COMPOUND_MESSAGE_SIGNED_INT(long long);
+COHORS_TYPES_COMPOUND_MESSAGE_SIGNED_INT(short&);
+COHORS_TYPES_COMPOUND_MESSAGE_SIGNED_INT(int&);
+COHORS_TYPES_COMPOUND_MESSAGE_SIGNED_INT(long&);
+COHORS_TYPES_COMPOUND_MESSAGE_SIGNED_INT(long long&);
 COHORS_TYPES_COMPOUND_MESSAGE_SIGNED_INT(const short&);
 COHORS_TYPES_COMPOUND_MESSAGE_SIGNED_INT(const int&);
 COHORS_TYPES_COMPOUND_MESSAGE_SIGNED_INT(const long&);
@@ -292,14 +292,31 @@ COHORS_TYPES_COMPOUND_MESSAGE_SIGNED_INT(short&&);
 COHORS_TYPES_COMPOUND_MESSAGE_SIGNED_INT(int&&);
 COHORS_TYPES_COMPOUND_MESSAGE_SIGNED_INT(long&&);
 COHORS_TYPES_COMPOUND_MESSAGE_SIGNED_INT(long long&&);
-COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT(const unsigned short&);
-COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT(const unsigned int&);
-COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT(const unsigned long&);
-COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT(const unsigned long long&);
-COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT(unsigned short&&);
-COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT(unsigned int&&);
-COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT(unsigned long&&);
-COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT(unsigned long long&&);
+
+COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT\
+(unsigned short&);
+COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT\
+(unsigned int&);
+COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT\
+(unsigned long&);
+COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT\
+(unsigned long long&);
+COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT\
+(const unsigned short&);
+COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT\
+(const unsigned int&);
+COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT\
+(const unsigned long&);
+COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT\
+(const unsigned long long&);
+COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT\
+(unsigned short&&);
+COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT\
+(unsigned int&&);
+COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT\
+(unsigned long&&);
+COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT\
+(unsigned long long&&);
 
 // for long double
 // TODO enable_if(type class)
