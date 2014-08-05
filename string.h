@@ -553,6 +553,10 @@ public:
   {
   }
 
+  constexpr basic_constexpr_string()
+    : basic_constexpr_string("")
+  {}
+
   constexpr size_type size() const { return len; }
 
   constexpr const value_type* data() const 
@@ -588,11 +592,16 @@ public:
     );
   }
 
+  bool is_identical(basic_constexpr_string o) const
+  {
+    return arr == o.arr && len == o.len;
+  }
+
   bool operator==(basic_constexpr_string o) const
   {
-    return len == o.len
-      && (arr == o.arr
-          || traits_type::compare(arr, o.arr, len) == 0
+    return is_identical(o)
+      || (len == o.len
+          && traits_type::compare(arr, o.arr, len) == 0
           );
   }
 
@@ -603,6 +612,9 @@ public:
 
   bool operator<(basic_constexpr_string o) const
   {
+    if (is_identical(o))
+      return false;
+
     const int res = traits_type::compare(
       arr,
       o.arr,
@@ -616,6 +628,9 @@ public:
 
   bool operator>(basic_constexpr_string o) const
   {
+    if (is_identical(o))
+      return false;
+
     const int res = traits_type::compare(
       arr,
       o.arr,
