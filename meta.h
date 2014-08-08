@@ -1,4 +1,4 @@
-/* -*-coding: mule-utf-8-unix; fill-column: 58; -*-
+/* -*-coding: mule-utf-8-unix; fill-column: 58; -*- *******
 
   Copyright (C) 2009, 2013 Sergei Lodyagin 
  
@@ -124,11 +124,46 @@ auto aggregate_construct(const Tuple& pars)
   );
 }
 
-
- 
 } // tuple
+} // curr
 
 namespace types {
+
+//! Returns a most derived type
+template<class T1, class T2, class Enabled = void>
+struct most_derived;
+
+template<class T>
+struct most_derived<T, T>
+{
+  using type = T;
+};
+
+template<class T1, class T2>
+struct most_derived<
+  T1, 
+  T2, 
+  typename std::enable_if<
+    std::is_base_of<T1, T2>::value
+    && !std::is_same<T1, T2>::value
+  >::type
+>
+{
+  using type = T2;
+};
+
+template<class T1, class T2>
+struct most_derived<
+  T1, 
+  T2, 
+  typename std::enable_if<
+    std::is_base_of<T2, T1>::value
+    && !std::is_same<T1, T2>::value
+  >::type
+>
+{
+  using type = T1;
+};
 
 #if 0
 namespace {
@@ -220,6 +255,5 @@ struct ctr_args<C, decltype(C(std::declval<A1>()))>
 #endif
 
 } // types
-} // curr
 
 #endif
