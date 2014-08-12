@@ -27,10 +27,10 @@
  * @author Sergei Lodyagin
  */
 
-#ifndef CONCURRO_TYPES_EXT_CONSTR_H
-#define CONCURRO_TYPES_EXT_CONSTR_H
+#ifndef TYPES_EXT_CONSTR_H
+#define TYPES_EXT_CONSTR_H
 
-namespace curr {
+namespace types {
 
 //! T is a type to be constructed externally by a placement
 //! new operator. It will also never call a destructor for
