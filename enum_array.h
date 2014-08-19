@@ -17,7 +17,7 @@
 namespace types {
 
 template<class Enum, class T>
-class enum_array : protected std::array<T, Enum::size()>
+class enum_array : public std::array<T, Enum::size()>
 {
   using array = std::array<T, Enum::size()>;
   //NB no data members
