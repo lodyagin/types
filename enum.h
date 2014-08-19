@@ -8,168 +8,216 @@
  */
 
 #include <ios>
-#include <cstddef>
-#include <stdexcept>
+#include <cassert>
+#include <functional>
+#include <vector>
+#include <iterator>
+#include "types/typeinfo.h"
 
 #ifndef TYPES_ENUM_H
 #define TYPES_ENUM_H
 
 namespace types {
 
-constexpr bool string_equal
-  (const char* a, const char* b)
-{
-  return a[0] == b[0]
-    && (*a == 0 || string_equal(a+1, b+1));
-}
+namespace enum_ {
 
-template<class Int, class String, std::size_t N>
-class enum_meta
+//! get a name of enum value
+template<class EnumVal>
+std::string get_name()
 {
+  auto type_name = type<EnumVal>::name();
+  // select only type name, discard namespace
+  auto pos = type_name.find_last_of(':');
+  if (pos != decltype(type_name)::npos)
+    return type_name.substr(pos + 1);
+  else
+    return type_name;
+};
+
+template<class Int, Int N, class... Vals>
+class meta;
+
+template<class Int, Int N>
+class meta<Int, N>
+{
+protected:
+  static constexpr Int n = N;
+
 public:
-  static constexpr std::size_t n = N;
+  using int_type = Int;
 
-  constexpr String name(Int k) const
-  {
-    return (k >= 0 && k < N) 
-      ? names[k] 
-      : (throw std::domain_error("Bad enum value"));
+  static const std::string& name() 
+  { 
+    static std::string empty_name;
+    return empty_name;
   }
 
-  constexpr Int value(String name) const
+  static constexpr Int index()
   {
-    return search_value(names, 0, name);
+    return n;
   }
-
-  String names[N];
 
 protected:
-  constexpr Int search_value 
-    (String const* arr, std::size_t k, String name) const
+  template<class It>
+  static void fill_names(It it) 
   {
-    return (k < N) ?
-      (string_equal(*arr, name) ? 
-        k : search_value(arr + 1, k + 1, name))
-      : (throw std::domain_error("Bad enum constant"));
   }
 };
 
-template<class V0, class... V/*, class Int = int*/>
-constexpr enum_meta<int, V0, 1 + sizeof...(V)> 
-//
-build_enum(V0 v0, V... v)
+template<class Int, Int N, class Val, class... Vals>
+class meta<Int, N, Val, Vals...> 
+  : public meta<Int, N, Vals...>
 {
-  return enum_meta<int, V0, 1 + sizeof...(V)> { { v0, v... } };
+  template<class I, class... V>
+  friend class base;
+
+  using base = meta<Int, N, Vals...>;
+
+protected:
+  static constexpr Int n = base::n - 1;
+
+public:
+  using base::name;
+  using base::index;
+
+  static const std::string& name(Val) 
+  {
+    static std::string the_name = get_name<Val>();
+    return the_name;
+  }
+
+  static constexpr Int index(Val)
+  {
+    return n;
+  }
+
+protected:
+  template<class It>
+  static void fill_names(It it)
+  {
+    *it++ = std::cref(name(Val()));
+    base::fill_names(it);
+  }
+};
+
+static int xalloc()
+{
+  static int xalloc_ = std::ios_base::xalloc();
+  return xalloc_;
 }
 
-class EnumBase
+template<class Int, class... Vals>
+class base
 {
+  using vector = std::vector<
+    std::reference_wrapper<const std::string>
+  >;
+
 public:
-  static const int xalloc;
+  using int_type = Int;
+
+  static const std::string& name(int_type idx)
+  {
+    static vector names = init_names();
+    assert(idx >= 0 && idx < names.size());
+    return names[idx];
+  }
+
+private:
+  static vector init_names()
+  {
+    vector res;
+    res.reserve(sizeof...(Vals));
+    meta<Int, sizeof...(Vals), Vals...>
+      ::fill_names(std::back_inserter(res));
+    return res;
+  }
 };
 
-/**
-  * An alternative to enum. LiteralType
-  * TODO const char (&) [N] and check array-to-pointer
-  * rules in the standard
-  */
-template <
-  class T, 
-  std::size_t N,
-  class Int = int,
-  class String = const char*
->
-class enum_t : public EnumBase
+} // enum_
+
+template<class Int, class... Vals>
+class enumerate 
+  : public enum_::meta<Int, sizeof...(Vals), Vals...>,
+    public enum_::base<Int, Vals...>
 {
+  using meta = enum_::meta<Int,sizeof...(Vals),Vals...>;
+  using base = enum_::base<Int, Vals...>;
+
 public:
-  using meta_type = enum_meta<Int, String, N>;
+  using typename base::int_type;
 
-  constexpr enum_t() : value(0)
+  using meta::name;
+  using meta::index;
+
+  enumerate() {}
+
+  template<class EnumVal>
+  enumerate(EnumVal val) : idx(index(val)) {}
+
+  const std::string& name() const
   {
+    return base::name(idx);
   }
 
-  constexpr enum_t(String name) : value(T::meta().value(name))
+  int_type index() const
   {
+    return idx;
   }
 
-  constexpr String name() const
+  static constexpr std::size_t size()
   {
-    return T::meta().name(value);
+    return sizeof...(Vals);
   }
 
-  constexpr bool operator == (enum_t b) const
-  {
-    return value == b.value;
-  }
-
-  constexpr bool operator != (enum_t b) const
-  {
-    return value == b.value;
-  }
-
-  constexpr bool operator < (enum_t b) const
-  {
-    return value < b.value;
-  }
-
-  constexpr bool operator > (enum_t b) const
-  {
-    return value > b.value;
-  }
-
-  constexpr bool operator >= (enum_t b) const
-  {
-    return value >= b.value;
-  }
-
-  constexpr bool operator <= (enum_t b) const
-  {
-    return value <= b.value;
-  }
-
-  enum_t& operator ++()
-  {
-    assert(value >= 0);
-    assert(value < meta_type::n);
-    ++value;
-    return *this;
-  }
-
-  Int value;
+protected:
+  Int idx;
 };
 
 //! Switch printing enums as strings or integers. The
-//! integer mode is default
-std::ios_base& enumalpha(std::ios_base& ios);
-
-template <
-  class CharT,
-  class Traits = std::char_traits<CharT>,
-  class T, 
-  std::size_t N,
-  class Int
->
-std::basic_ostream<CharT, Traits>&
-operator << 
-  ( std::basic_ostream<CharT, Traits>& out,
-    const enum_t<T, N, Int>& e )
+//! string mode is default
+inline std::ios_base& enumalpha(std::ios_base& ios)
 {
-  return (out.iword(EnumBase::xalloc)) 
-    ? out << e.name() 
-    : out << e.value;
+  ios.iword(enum_::xalloc()) = 0;
+  return ios;
+}
+
+inline std::ios_base& noenumalpha(std::ios_base& ios)
+{
+  ios.iword(enum_::xalloc()) = 1;
+  return ios;
 }
 
 template <
   class CharT,
   class Traits = std::char_traits<CharT>,
-  class T, 
-  std::size_t N,
-  class Int
+  class Int,
+  class... EnumVals
+>
+std::basic_ostream<CharT, Traits>&
+operator << ( 
+  std::basic_ostream<CharT, Traits>& out,
+  enumerate<Int, EnumVals...> v
+)
+{
+  return (out.iword(enum_::xalloc())) 
+    ? out << (intmax_t) v.index() // prevent printing 
+                                  // int8_t as char
+    : out << v.name();
+}
+
+#if 0
+template <
+  class CharT,
+  class Traits = std::char_traits<CharT>,
+  class Int,
+  class... EnumVals
 >
 std::basic_istream<CharT, Traits>&
-operator >> 
-  ( std::basic_istream<CharT, Traits>& in, 
-    enum_t<T, N, Int>& e )
+operator >> ( 
+  std::basic_istream<CharT, Traits>& in, 
+  enumerate<Int, EnumVals...>& e 
+)
 {
   if (in.iword(EnumBase::xalloc)) {
     std::string name;
@@ -179,6 +227,7 @@ operator >>
   else in >> e.value;
   return in;
 }
+#endif
 
 } // types
 
