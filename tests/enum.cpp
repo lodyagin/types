@@ -22,49 +22,28 @@ std::string get_name()
     return type_name;
 };
 
-//! static storage for an enum value name
-template<class Val>
-struct name_cacher
-{
-  //! If the name was found before return the cached
-  //! value, found it in other case
-  static void init_name_cache()
-  {
-    if (name_cache.empty())
-      name_cache = get_name<Val>();
-  }
-
-  static std::string name_cache;
-};
-
-template<class Val>
-std::string name_cacher<Val>::name_cache;
-
 } // enum_name_
 
 template<class... Vals>
 class enumerate;
 
 template<>
-class enumerate<> : protected enum_name_::name_cacher<void>
+class enumerate<>
 {
 public:
   static constexpr std::size_t n = 0;
 
   static const std::string& name() 
   { 
-    return enum_name_::name_cacher<void>::name_cache;
-    // empty name
+    static std::string empty_name;
+    return empty_name;
   }
 };
 
 template<class Val, class... Vals>
-class enumerate<Val, Vals...> 
-  : public enumerate<Vals...>,
-    protected enum_name_::name_cacher<Val>
+class enumerate<Val, Vals...> : public enumerate<Vals...>
 {
   using base = enumerate<Vals...>;
-  using cacher = enum_name_::name_cacher<Val>;
 
 public:
   static constexpr std::size_t n = base::n + 1;
@@ -73,8 +52,9 @@ public:
 
   static const std::string& name(Val) 
   {
-    cacher::init_name_cache();
-    return cacher::name_cache;
+    static std::string the_name = 
+      enum_name_::get_name<Val>();
+    return the_name;
   }
 };
 
