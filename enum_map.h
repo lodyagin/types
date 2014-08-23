@@ -36,6 +36,13 @@ public:
     return map::operator[](enum_type_index<Enum>(e));
   }
 
+  //! Merge sets
+  enum_map& operator|=(const enum_map& o)
+  {
+    this->insert(o.begin(), o.end());
+    return *this;
+  }
+
   /*template<class... EnumVal>
   selector_t<EnumVal...>&&  // protect storing?
   select()
