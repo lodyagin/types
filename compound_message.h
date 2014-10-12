@@ -13,8 +13,9 @@
 #ifndef COHORS_TYPES_COMPOUND_MESSAGE_H
 #define COHORS_TYPES_COMPOUND_MESSAGE_H
 
+#include <locale>
 #include "types/string.h"
-#include "types/typeinfo.h"
+//#include "types/typeinfo.h"
 
 namespace types {
 
@@ -25,7 +26,7 @@ namespace compound_message_ {
 //! A limiting wrapper for a type, it limits the output
 //! field. 
 template<
-  int16_t MaxLen, 
+  std::int16_t MaxLen, 
   class T, 
   limit_policy lim_policy = limit_policy::get_head,
   typename T::value_type TruncationMark = '*'
@@ -42,7 +43,7 @@ struct limit_t
 } // compound_message_
 
 template<
-  int16_t MaxLen, 
+  std::int16_t MaxLen, 
   limit_policy lim_policy = limit_policy::get_head, 
   class T = void
 >
@@ -53,14 +54,14 @@ limit(const T& orig)
     <MaxLen, T, lim_policy>(orig);
 }
 
-template<int16_t MaxLen, class T>
+template<std::int16_t MaxLen, class T>
 auto limit_head(const T& orig)
   -> decltype(limit<MaxLen, limit_policy::get_tail>(orig))
 {
   return limit<MaxLen, limit_policy::get_tail>(orig);
 }
 
-template<int16_t MaxLen, class T>
+template<std::int16_t MaxLen, class T>
 auto limit_tail(const T& orig)
   -> decltype(limit<MaxLen, limit_policy::get_head>(orig))
 {
@@ -79,7 +80,7 @@ class stringifier_t;
 template<int idx>
 struct len_t<idx>
 {
-  static constexpr size_t max_length = 0;
+  static constexpr std::size_t max_length = 0;
 };
 
 template<class OutIt, int idx>
@@ -91,13 +92,13 @@ public:
 };
 
 // for a string literal
-template<int idx, class CharT, size_t N>
+template<int idx, class CharT, std::size_t N>
 struct len_t<idx, const CharT(&)[N]>
 {
-  static constexpr size_t max_length = N - 1;
+  static constexpr std::size_t max_length = N - 1;
 };
 
-template<class OutIt, int idx, size_t N>
+template<class OutIt, int idx, std::size_t N>
 class stringifier_t<
   OutIt,
   idx,
@@ -113,18 +114,23 @@ public:
 
   void stringify(OutIt out, std::ios_base&) const noexcept
   {
+#if 0
     try {
       std::copy(ptr, ptr + N - 1, out);
     }
     catch(...) {
       *out++ = '?';
     }
+#else
+    std::copy(ptr, ptr + N - 1, out);
+#endif
   }
 
 protected:
   const char_type *const ptr;
 };
 
+#if 0
 // for a basic_meta_string
 template<int idx, class CharT, class Traits, CharT... CS>
 struct len_t<
@@ -132,7 +138,7 @@ struct len_t<
   basic_meta_string<CharT, Traits, CS...>&&
 >
 {
-  static constexpr size_t max_length = 
+  static constexpr std::size_t max_length = 
     basic_meta_string<CharT, Traits, CS...>::size();
 };
 
@@ -166,28 +172,29 @@ public:
     }
   }
 };
+#endif
 
 // for basic_auto_string
-template<int idx, class CharT, int16_t N, class Traits>
+template<int idx, class CharT, std::int16_t N, class Traits>
 struct len_t<
   idx, 
   const basic_auto_string<CharT, N, Traits>&
 >
 {
-  static constexpr size_t max_length = (size_t) N;
+  static constexpr std::size_t max_length = (std::size_t) N;
 };
 
-template<int idx, class CharT, int16_t N, class Traits>
+template<int idx, class CharT, std::int16_t N, class Traits>
 struct len_t<idx, basic_auto_string<CharT, N, Traits>&&>
 {
-  static constexpr size_t max_length = (size_t) N;
+  static constexpr std::size_t max_length = (std::size_t) N;
 };
 
 template<
   class OutIt, 
   int idx,
   class CharT, 
-  int16_t N, 
+  std::int16_t N, 
   class Traits
 >
 class stringifier_t<
@@ -206,12 +213,16 @@ public:
 
   void stringify(OutIt out, std::ios_base&) const noexcept
   {
+#if 0
     try {
       std::copy(val.begin(), val.end(), out);
     }
     catch(...) {
       *out++ = '?';
     }
+#else
+  std::copy(val.begin(), val.end(), out);
+#endif
   }
 };
 
@@ -219,7 +230,7 @@ template<
   class OutIt, 
   int idx,
   class CharT, 
-  int16_t N, 
+  std::int16_t N, 
   class Traits
 >
 class stringifier_t<
@@ -238,38 +249,49 @@ public:
 
   void stringify(OutIt out, std::ios_base&) const noexcept
   {
+#if 0
     try {
       std::copy(val.begin(), val.end(), out);
     }
     catch(...) {
       *out++ = '?';
     }
+#else
+  std::copy(val.begin(), val.end(), out);
+#endif
   }
 };
 
-#define COHORS_TYPES_COMPOUND_MESSAGE_SIGNED_INT(Int)  \
-template<int idx>                                      \
-struct len_t<idx, Int>                                 \
+#define COHORS_TYPES_COMPOUND_MESSAGE_SIGNED_INT(Int)   \
+template<int idx>                                       \
+struct len_t<idx, Int>                                  \
 {                                                       \
-  static constexpr size_t max_length =                  \
-    std::numeric_limits<Int>::digits10                 \
+  static constexpr std::size_t max_length =             \
+    std::numeric_limits<Int>::digits10 + 1              \
     + 1 /*possible sign*/;                              \
 };                                                      \
                                                         \
 template<class OutIt, int idx>                          \
-class stringifier_t<OutIt, idx, Int>                   \
+class stringifier_t<OutIt, idx, Int>                    \
 {                                                       \
 public:                                                 \
   using char_type = typename OutIt::char_type;          \
                                                         \
-  stringifier_t(Int v) noexcept : val(v) {}            \
+  stringifier_t(Int v) noexcept : val(v) {}             \
                                                         \
   void stringify(OutIt out, std::ios_base& st)          \
     const noexcept                                      \
   {                                                     \
+    std::num_put<char_type, OutIt>()                      \
+        . put(out, st, ' ', (long long) val);           \
+  }                                                     \
+protected:                                              \
+  typename std::remove_reference<Int>::type val;        \
+};
+/*
     try {                                               \
-      using namespace std;                              \
-      use_facet<num_put<char_type, OutIt>>(st.getloc()) \
+      std::use_facet<std::num_put<char_type, OutIt>>    \
+        (st.getloc())   \
         . put(out, st, ' ', (long long) val);           \
     }                                                   \
     catch (...) {                                       \
@@ -280,13 +302,13 @@ public:                                                 \
 protected:                                              \
   typename std::remove_reference<Int>::type val;                                       \
 };
-
+*/
 #define COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT(Int) \
 template<int idx>                                       \
 struct len_t<idx, Int>                                  \
 {                                                       \
-  static constexpr size_t max_length =                  \
-    std::numeric_limits<Int>::digits10;                \
+  static constexpr std::size_t max_length =                  \
+    std::numeric_limits<Int>::digits10 + 1;             \
 };                                                      \
                                                         \
 template<class OutIt, int idx>                          \
@@ -300,9 +322,16 @@ public:                                                 \
   void stringify(OutIt out, std::ios_base& st)          \
     const noexcept                                      \
   {                                                     \
+    std::num_put<char_type, OutIt>()                    \
+      . put(out, st, ' ', (unsigned long long) val);    \
+  }                                                     \
+protected:                                              \
+  typename std::remove_reference<Int>::type val;        \
+};
+/*                                               \
     try {                                               \
-      using namespace std;                              \
-      use_facet<num_put<char_type, OutIt>>(st.getloc()) \
+      std::use_facet<std::num_put<char_type, OutIt>>    \
+        (st.getloc()) \
         . put(out, st, ' ', (unsigned long long) val);  \
     }                                                   \
     catch (...) {                                       \
@@ -312,7 +341,7 @@ public:                                                 \
                                                         \
 protected:                                              \
   typename std::remove_reference<Int>::type val;                                       \
-};
+};*/
 
 COHORS_TYPES_COMPOUND_MESSAGE_SIGNED_INT(short&);
 COHORS_TYPES_COMPOUND_MESSAGE_SIGNED_INT(int&);
@@ -352,13 +381,15 @@ COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT\
 COHORS_TYPES_COMPOUND_MESSAGE_UNSIGNED_INT\
 (unsigned long long&&);
 
+#if 0 // TODO numeric_limits in bare
 // for long double
 // TODO enable_if(type class)
 template<int idx>
 struct len_t<idx, long double&>
 {
-  static constexpr size_t max_length = 
-    std::numeric_limits<long double>::digits10 // mantissa
+  static constexpr std::size_t max_length = 
+    std::numeric_limits<long double>::max_digits10 
+      // mantissa
     + constexpr_string("-1.e-123").size();
 };
 
@@ -386,24 +417,25 @@ public:
 protected:
   const long double val;
 };
+#endif
 
 //! for limit_t<N>
 template<
   int idx, 
   class Type, 
-  int16_t MaxLen, 
+  std::int16_t MaxLen, 
   limit_policy LimPolicy
 >
 struct len_t<idx, limit_t<MaxLen, Type, LimPolicy>&&>
 {
-  static constexpr size_t max_length = MaxLen;
+  static constexpr std::size_t max_length = MaxLen;
 };
 
 template<
   class OutIt, 
   int idx, 
   class Type, 
-  int16_t MaxLen,
+  std::int16_t MaxLen,
   limit_policy LimPolicy
 >
 class stringifier_t<
@@ -459,13 +491,13 @@ protected:
 #if 0
 // for types::type
 // TODO general case for types with operator auto_string()
-template<int idx, class Type, int16_t MaxLen>
+template<int idx, class Type, std::int16_t MaxLen>
 struct len_t<idx, type<Type, MaxLen>&&>
 {
-  static constexpr size_t max_length = MaxLen;
+  static constexpr std::size_t max_length = MaxLen;
 };
 
-template<class OutIt, int idx, class Type, int16_t MaxLen>
+template<class OutIt, int idx, class Type, std::int16_t MaxLen>
 class stringifier_t<OutIt, idx, type<Type, MaxLen>&&>
 {
   using typeinfo = type<Type, MaxLen>;
@@ -495,7 +527,7 @@ struct len_t<idx, Arg0, Args...>
   using head = len_t<idx, Arg0>;
   using tail = len_t<idx + 1, Args...>;
 
-  static constexpr size_t max_length = 
+  static constexpr std::size_t max_length = 
     head::max_length + tail::max_length;
 };
 
@@ -567,7 +599,7 @@ public:
 } // compound_message_
 
 template<class... Args>
-constexpr size_t compound_message_max_length()
+constexpr std::size_t compound_message_max_length()
 {
   return compound_message_::len_t<0,
 #if 0
