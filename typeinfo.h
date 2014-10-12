@@ -9,8 +9,8 @@
  * @copyright Copyright (C) 2013 Cohors LLC 
  */
 
-#ifndef COHORS_TYPES_TYPEINFO_H
-#define COHORS_TYPES_TYPEINFO_H
+#ifndef TYPES_TYPEINFO_H
+#define TYPES_TYPEINFO_H
 
 #include <typeinfo>
 #include <typeindex>
