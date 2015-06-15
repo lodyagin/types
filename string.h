@@ -12,14 +12,14 @@
 #ifndef COHORS_TYPES_STRING_H
 #define COHORS_TYPES_STRING_H
 
-#include <iostream>
-#include <streambuf>
-#include <string>
+//#include <iostream>
+//#include <streambuf>
+//#include <string>
 #include <array>
 #include <cstdint>
-#include <iterator>
 #include <limits>
-#include <assert.h>
+//#include <bits/silent_assert.h>
+//#include <bits/iterator.h>
 
 namespace types {
 
@@ -52,14 +52,14 @@ public:
   using iterator_category = 
     std::random_access_iterator_tag;
   using value_type = CharT;
-  using difference_type = int16_t;
-  using size_type = uint16_t;
+  using difference_type = std::int16_t;
+  using size_type = std::uint16_t;
   using pointer = Pointer;
   using reference = Reference;
   using const_pointer = const CharT*;
   using const_reference = const CharT&;
 
-  template<class, int16_t, class>
+  template<class, std::int16_t, class>
   friend class basic_auto_string;
 
   template<class C, class P, class R>
@@ -67,7 +67,7 @@ public:
 
   bool operator==(safe_string o) const noexcept
   {
-    assert(base == o.base);
+    _silent_assert(base == o.base);
     return virtual_ptr() == o.virtual_ptr();
   }
 
@@ -125,7 +125,7 @@ public:
 
   difference_type operator-(safe_string o) const noexcept
   {
-    assert(base == o.base);
+    _silent_assert(base == o.base);
     return virtual_ptr() - o.virtual_ptr();
   }
 
@@ -140,7 +140,7 @@ public:
   }
 
   static_assert(
-    sizeof(size_type) < sizeof(size_t),
+    sizeof(size_type) < sizeof(std::size_t),
     "unable to correctly implement virtual_ptr()"
   );
   const_pointer virtual_ptr() const noexcept
@@ -151,27 +151,29 @@ public:
   //protected:  //TODO problem with friend basic_auto_string in clang
   safe_string(
     pointer base_, 
-    int16_t n_, 
+    std::int16_t n_, 
     size_type idx_, 
-    int16_t ovf_
+    std::int16_t ovf_
   )  noexcept 
     : base(base_), idx(idx_), ovf(ovf_), n(n_) 
   {
-    assert(n >= 0);
+    _silent_assert(n >= 0);
   }
 
-  safe_string(pointer base_, int16_t n_, begin_t) noexcept 
+  safe_string(pointer base_, std::int16_t n_, begin_t) 
+	 noexcept 
     : safe_string(base_, n_, 0, 0)
   {}
 
-  safe_string(pointer base_, int16_t n_, end_t) noexcept 
+  safe_string(pointer base_, std::int16_t n_, end_t) 
+	 noexcept 
     : safe_string(base_, n_, 0, n_)
   {}
 
   pointer base;
   size_type idx;
-  int16_t ovf;
-  int16_t n;
+  std::int16_t ovf;
+  std::int16_t n;
 };
 
 } // iterators_
@@ -201,7 +203,7 @@ using auto_wstring_traits =
 
 template <
   class CharT,
-  int16_t N,
+  std::int16_t N,
   class Traits = std::char_traits<CharT>
 > 
 class basic_auto_string 
@@ -222,8 +224,8 @@ protected:
 public:
   using traits_type = Traits;
   using value_type = CharT;
-  using size_type = uint16_t;
-  using difference_type = int16_t;
+  using size_type = std::uint16_t;
+  using difference_type = std::int16_t;
   using iterator = typename 
     basic_auto_string_traits<CharT, Traits>::iterator;
   using const_iterator = typename 
@@ -333,18 +335,18 @@ public:
 
   value_type* data()
   {
-    assert(m[N-1] == 0);
+    _silent_assert(m[N-1] == 0);
     m[N-1] = 0; // for sure
     return m.data();
   }
 
   const value_type* data() const
   {
-    assert(m[N-1] == 0);
+    _silent_assert(m[N-1] == 0);
     m[N-1] = 0; // for sure
     return m.data();
 
-    // assert(*end() == 0);
+    // _silent_assert(*end() == 0);
     // *end() = 0;
     // Don't do it, you can break a message which overruns
     // the buffer.
@@ -352,7 +354,7 @@ public:
 
   const value_type* c_str() const
   {
-    assert(m[N-1] == 0);
+    _silent_assert(m[N-1] == 0);
     m[N-1] = 0; // for sure
     return data();
   }
@@ -376,15 +378,16 @@ template<
 >
 class basic_auto_string<CharT, 0, Traits>;
 
-template<int16_t N>
+template<std::int16_t N>
 using auto_string = basic_auto_string<char, N>;
 
-template<int16_t N>
+template<std::int16_t N>
 using auto_wstring = basic_auto_string<wchar_t, N>;
 
+#if 0
 template <
   class CharT,
-  int16_t N,
+  std::int16_t N,
   class Traits = std::char_traits<CharT>
 >
 class basic_auto_stringbuf 
@@ -487,7 +490,7 @@ protected:
     const pos_type end_pos = this->egptr()- this->eback();
     off_type abs_pos(0);
 
-    switch((uint32_t)dir) {
+    switch((std::uint32_t)dir) {
       case ios_base::beg: 
         abs_pos = off;
         break;
@@ -525,11 +528,12 @@ protected:
   string s;
 };
 
-template<int16_t N>
+template<std::int16_t N>
 using auto_stringbuf = basic_auto_stringbuf<char, N>;
 
-template<int16_t N>
+template<std::int16_t N>
 using auto_wstringbuf = basic_auto_stringbuf<wchar_t, N>;
+#endif
 
 /**
  * Just basic_constexpr_string. It is used for "wrap"
@@ -543,38 +547,39 @@ template <
 class basic_constexpr_string 
 {
 public:
-  typedef uint32_t size_type;
+  typedef std::uint32_t size_type;
   typedef CharT value_type;
   typedef Traits traits_type;
 
   template<std::uint32_t N>
   constexpr basic_constexpr_string(const char(&str)[N])
+    noexcept
     : len(N-1), arr(str)
   {
   }
 
-  constexpr basic_constexpr_string()
+  constexpr basic_constexpr_string() noexcept
     : basic_constexpr_string("")
   {}
 
-  constexpr size_type size() const { return len; }
+  constexpr size_type size() const noexcept { return len; }
 
-  constexpr const value_type* data() const 
+  constexpr const value_type* data() const noexcept
   { 
     return arr; 
   }
 
-  constexpr const value_type* c_str() const 
+  constexpr const value_type* c_str() const noexcept
   { 
     return arr; 
   }
 
-  const value_type* begin() const
+  const value_type* begin() const noexcept
   {
     return arr;
   }
 
-  const value_type* end() const
+  const value_type* end() const noexcept
   {
     return arr + len;
   }
@@ -584,7 +589,7 @@ public:
     return std::string(arr, len);
   }
 
-  template<int16_t N>
+  template<std::int16_t N>
   operator basic_auto_string<CharT, N, Traits>() const
   {
     return basic_auto_string<CharT, N, Traits>(
@@ -593,11 +598,12 @@ public:
   }
 
   bool is_identical(basic_constexpr_string o) const
+    noexcept
   {
     return arr == o.arr && len == o.len;
   }
 
-  bool operator==(basic_constexpr_string o) const
+  bool operator==(basic_constexpr_string o) const noexcept
   {
     return is_identical(o)
       || (len == o.len
@@ -605,12 +611,12 @@ public:
           );
   }
 
-  bool operator!=(basic_constexpr_string o) const
+  bool operator!=(basic_constexpr_string o) const noexcept
   {
     return !operator==(o);
   }
 
-  bool operator<(basic_constexpr_string o) const
+  bool operator<(basic_constexpr_string o) const noexcept
   {
     if (is_identical(o))
       return false;
@@ -626,7 +632,7 @@ public:
       return res < 0;
   }
 
-  bool operator>(basic_constexpr_string o) const
+  bool operator>(basic_constexpr_string o) const noexcept
   {
     if (is_identical(o))
       return false;
@@ -642,12 +648,12 @@ public:
       return res > 0;
   }
 
-  bool operator<=(basic_constexpr_string o) const
+  bool operator<=(basic_constexpr_string o) const noexcept
   {
     return !operator>(o);
   }
 
-  bool operator>=(basic_constexpr_string o) const
+  bool operator>=(basic_constexpr_string o) const noexcept
   {
     return !operator<(o);
   }
@@ -660,6 +666,7 @@ private:
 typedef basic_constexpr_string<char> constexpr_string;
 typedef basic_constexpr_string<wchar_t> constexpr_wstring;
 
+#if 0
 template<class CharT, class Traits>
 std::basic_ostream<CharT, Traits>& operator<<(
   std::basic_ostream<CharT, Traits>& out, 
@@ -668,6 +675,7 @@ std::basic_ostream<CharT, Traits>& operator<<(
 {
   return out.write(str.data(), str.size());
 }
+#endif
 
 /**
  * It is usefull for parsing template literal operators.
@@ -686,7 +694,7 @@ template <
 class basic_meta_string<CharT, Traits>
 {
 public:
-  typedef uint16_t size_type;
+  typedef std::uint16_t size_type;
   typedef CharT value_type;
   typedef Traits traits_type;
 
@@ -714,7 +722,7 @@ class basic_meta_string<CharT, Traits, C0, CS...>
 {
   using parent = basic_meta_string<CharT, Traits, CS...>;
 public:
-  typedef uint16_t size_type;
+  typedef std::uint16_t size_type;
   typedef CharT value_type;
   typedef Traits traits_type;
 
@@ -723,12 +731,14 @@ public:
     return parent::size() + 1;
   }
 
+#if 0
   operator std::string() const
   {
     std::string res(size(), '\0');
     copy_to(res.begin());
     return res;
   }
+#endif
 
   //! Copy the string to the output iterator
   template<class OutputIt>

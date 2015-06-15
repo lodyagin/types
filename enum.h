@@ -174,6 +174,26 @@ protected:
   Int idx;
 };
 
+// i.e. enum_type_index<red>() or enum_type_index(red())
+template<class EnumVal>
+struct enum_type_index
+{
+  enum_type_index() {}
+  enum_type_index(EnumVal val) {}
+
+  operator std::type_index() const
+  {
+    return std::type_index(typeid(EnumVal));
+  }
+};
+
+// i.e. colour = red(); enum_type_index(colour);
+template<class Int, class... Vals>
+struct enum_type_index<enumerate<Int, Vals...>>
+{
+  // TODO
+};
+
 //! Switch printing enums as strings or integers. The
 //! string mode is default
 inline std::ios_base& enumalpha(std::ios_base& ios)
