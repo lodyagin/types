@@ -53,6 +53,10 @@
 //#include <bits/silent_assert.h>
 //#include <bits/iterator.h>
 
+#ifndef BARE_CXX
+#define _silent_assert assert
+#endif
+
 namespace types {
 
 // TODO move to some right place
@@ -416,7 +420,7 @@ using auto_string = basic_auto_string<char, N>;
 template<std::int16_t N>
 using auto_wstring = basic_auto_string<wchar_t, N>;
 
-#if 0
+#if 1
 template <
   class CharT,
   std::int16_t N,
