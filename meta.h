@@ -49,7 +49,7 @@
 #include <tuple>
 #include <utility>
 
-namespace curr { 
+namespace types { 
 
 //! Check whether `Check' is true (it is typically a
 //! metaprogramming predicate with a value member of a
@@ -101,6 +101,19 @@ auto call_(seq<S...>, const Tuple& tup)
   return Fun(std::get<S>(tup)...);
 }
 
+template<class Fun, class Tuple, int... S, class... Pars>
+auto call_(Fun fun, seq<S...>, Tuple&& tup, Pars&&... pars)
+  -> decltype(fun(
+         std::forward<Pars>(pars)..., // non-tuple parameters
+         std::get<S>(std::forward<Tuple>(tup))...
+     ))
+{
+  return fun(
+    std::forward<Pars>(pars)..., // non-tuple parameters
+    std::get<S>(std::forward<Tuple>(tup))...
+  );
+}
+
 template<class Fun, class Tuple>
 auto call(const Tuple& pars) 
   -> decltype(
@@ -113,6 +126,25 @@ auto call(const Tuple& pars)
   return call_<Fun>(
     typename gens<std::tuple_size<Tuple>::value>::type(),
     pars
+  );
+}
+
+template<class Fun, class Tuple, class... Pars2>
+auto call(Fun fun, Tuple&& pars, Pars2&&... pars2) 
+  -> decltype(
+    call_(
+      fun,
+      typename gens<std::tuple_size<Tuple>::value>::type(),
+      std::forward<Tuple>(pars),
+      std::forward<Pars2>(pars2)...
+    )
+  )
+{
+  return call_<Fun>(
+    fun,
+    typename gens<std::tuple_size<Tuple>::value>::type(),
+    std::forward<Tuple>(pars),
+    std::forward<Pars2>(pars2)...
   );
 }
 
