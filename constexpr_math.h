@@ -1,7 +1,7 @@
 // -*-coding: mule-utf-8-unix; fill-column: 58; -*-
 /**
  * @file
- * Type information routines.
+ * A constexpr arithmetic.
  *
  * This file (originally) was a part of public
  * https://github.com/lodyagin/types repository.
@@ -41,83 +41,71 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TYPES_TYPEINFO_H
-#define TYPES_TYPEINFO_H
+#ifndef TYPES_CONSTEXPR_MATH_H
+#define TYPES_CONSTEXPR_MATH_H
 
-#include <typeinfo>
-#include <typeindex>
-#ifndef _WIN32
-#include <cxxabi.h>
-#endif
-#include "types/string.h"
+#include <cstdint>
 
 namespace types {
 
-//! Returns a demangled Type name
-inline std::string demangled_name(
-  const std::type_index& idx
-)
+// FIXME add overflow
+template<uintmax_t x>
+struct log2x 
 {
-#ifndef _WIN32
-    // Demangle the name by the ABI rules
-    int status;
-    const char* mangled = idx.name();
-    char* name = abi::__cxa_demangle
-      (mangled, nullptr, nullptr, &status);
-    if (status == 0) {
-      std::string res(name);
-      free(name);
-      return res;
-    }
-    else {
-      assert(name == nullptr);
-      return std::string(mangled);
-    }
-#else
-    return typeid(Type).name();
-#endif
-}
-
-//! Returns a demangled Type name
-inline std::string demangled_name(
-  const std::type_info& info
-)
-{
-  return demangled_name(std::type_index(info));
-}
-
-template<class String>
-String mangled_name(std::type_index code)
-{
-    return (String) code.name();
-}
-
-template<class T>
-struct type_of
-{
-  // unique code for each type
-  static std::type_index code() noexcept
-  { 
-      static std::type_index idx(typeid(T)); 
-      return idx;
-  }
-
-  //! Returns a demangled Type name
-  static std::string name()
-  {
-    return ::types::demangled_name(typeid(T));
-  }
-
-  //! For use in context where no dynamic memory
-  //! operations are desirable (e.g., throwing an
-  //! exception). 
-  template<class String>
-  static String mangled_name()
-  {
-      return (String) typeid(T).name();
-  }
+  enum : uintmax_t{ value = log2x<(x >> 1)>::value + 1 };
 };
+
+template<> 
+struct log2x<1>
+{
+  enum { value = 0 };
+};
+
+// FIXME add overflow
+// value is number of radix digits in x
+template<unsigned radix, uintmax_t x>
+struct digits
+{
+  enum : uintmax_t{ value = digits<radix, x / radix>::value + 1 };
+};
+
+template<unsigned radix> 
+struct digits<radix, 0> { enum { value = 0}; };
+
+template<uint8_t x>
+struct pow2x
+{
+  enum : uintmax_t { value = 2 * pow2x<x - 1>::value };
+};
+
+template<>
+struct pow2x<0>
+{
+  enum : uintmax_t { value = 1 };
+};
+
+template<uint8_t x>
+struct pow10x
+{
+  enum : uintmax_t { value = 10 * pow10x<x - 1>::value };
+};
+
+template<>
+struct pow10x<0>
+{
+  enum : uintmax_t { value = 1 };
+};
+
+//! Return mask with n lower bits set
+template<uint8_t n, class T = uint8_t>
+constexpr T n_bits_mask()
+{
+  return pow2x<n+1>::value - 1;
+}
 
 } // types
 
 #endif
+
+
+
