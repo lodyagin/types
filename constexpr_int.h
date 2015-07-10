@@ -1,7 +1,7 @@
 // -*-coding: mule-utf-8-unix; fill-column: 58; -*-
 /**
  * @file
- * Constexpres math for integers.
+ * A wide integer type.
  *
  * This file (originally) was a part of public
  * https://github.com/lodyagin/types repository.
@@ -63,7 +63,7 @@ struct multiword<word_t, 0>
 {
 };
 
-}
+} // constexpr_
 
 template<
   size_t bits,
