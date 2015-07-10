@@ -1,4 +1,45 @@
 // -*-coding: mule-utf-8-unix; fill-column: 58; -*-
+/**
+ * @file
+ *
+ * This file (originally) was a part of public
+ * https://github.com/lodyagin/types repository.
+ *
+ * @author Sergei Lodyagin
+ * @copyright Copyright (c) 2014, Sergei Lodyagin
+ *
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with
+ * or without modification, are permitted provided that
+ * the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above
+ * copyright notice, this list of conditions and the
+ * following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the
+ * above copyright notice, this list of conditions and the
+ * following disclaimer in the documentation and/or other
+ * materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+ * THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+ * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+ * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
 
 #ifndef TYPES_SAFE_UNION_H
 #define TYPES_SAFE_UNION_H
@@ -7,11 +48,13 @@
 #include <stdexcept>
 #include <utility>
 
-//! A type-safe union for T1 and T2.
+//! A type-safe union for T...
 //! Can also hold nothing.
 //! @author Sergei Lodyagin
-template<class T1, class T2>
-class safe_union
+template<class... T>
+class safe_union;
+
+class safe_union_base
 {
 public:
   template<class T>
@@ -34,8 +77,18 @@ public:
   };
 
   // void object - both values are uninitialized
-  safe_union() noexcept : the_type(type_t<void>::code()) {}
+  safe_union_base() noexcept : the_type(type_t<void>::code()) {}
 
+protected:
+  safe_union_base(type_code_t type_code) : the_type(type_code) {}
+
+  type_code_t the_type;
+};
+
+template<class T1, class T2>
+class safe_union<T1, T2>
+{
+public:
   // initialize with T1
   template<class... Args>
   safe_union(type_t<T1> t1, Args&&... args) 
@@ -49,6 +102,25 @@ public:
     : t2(std::forward<Args>(args)...),
       the_type(t2.code()) 
   {}
+
+  // dynamic constructor
+  template<class... Args>
+  safe_union(type_code_t type_code, Args&&... args)
+    : the_type(type_code)
+  {
+    if (type_code == type_t<T1>::code())
+    {
+        new(&t1) T1(std::forward<Args>(args)...);
+    }
+    else if (type_code == type_t<T2>::code())
+    {
+        new(&t2) T2(std::forward<Args>(args)...);
+    }
+    else
+    {
+        throw type_error("the type is not supported by the union");
+    }
+  }
 
   safe_union(const safe_union& o)
     : the_type(o.type())
@@ -98,6 +170,8 @@ public:
       ; // void
     else
       throw type_error("broken union in move constructor");
+
+    the_type = type_t<void>::code();
   }
 
   void swap(safe_union& o) 
@@ -189,7 +263,6 @@ private:
   type_code_t the_type;
   union { T1 t1; T2 t2; };
 };
-
 
 
 #endif
