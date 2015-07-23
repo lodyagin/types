@@ -45,8 +45,10 @@
 #ifndef TYPES_TRAITS_H
 #define TYPES_TRAITS_H
 
-#include <type_traits>
+#include <atomic>
 #include <tuple>
+#include <type_traits>
+#include <utility>
 
 namespace types 
 {
@@ -69,8 +71,51 @@ struct add<C, type<Args...>>
 
 } // pack
 
-namespace traits
-{
+// is_xxx valid also for signed xxx and unsigned xxx
+
+#define TYPES_IS_XXX_DECL(xxx) \
+template<class T> \
+struct is_##xxx : std::false_type \
+{ \
+};
+
+#define TYPES_IS_XXX_SPEC(xxx, yyy) \
+template<> \
+struct is_##xxx<yyy> : std::true_type \
+{ \
+};
+
+TYPES_IS_XXX_DECL(char);
+TYPES_IS_XXX_SPEC(char, char);
+TYPES_IS_XXX_SPEC(char, signed char);
+TYPES_IS_XXX_SPEC(char, unsigned char);
+
+TYPES_IS_XXX_DECL(short);
+TYPES_IS_XXX_SPEC(short, short);
+TYPES_IS_XXX_SPEC(short, unsigned short);
+
+TYPES_IS_XXX_DECL(int);
+TYPES_IS_XXX_SPEC(int, int);
+TYPES_IS_XXX_SPEC(int, unsigned int);
+
+TYPES_IS_XXX_DECL(long);
+TYPES_IS_XXX_SPEC(long, long);
+TYPES_IS_XXX_SPEC(long, unsigned long);
+
+template<class T>
+struct is_long_long : std::false_type
+{ 
+};
+
+template<>
+struct is_long_long<long long> : std::true_type
+{ 
+};
+
+template<>
+struct is_long_long<unsigned long long> : std::true_type
+{ 
+};
 
 // Static asserts that all Ds are descendants of B
 template<class B, class... Ds>
@@ -164,7 +209,196 @@ struct select_descendants
     : helper_::select_descendants<B, pack::type<D0, Ds...>>
 {};
 
-} // traits
+// Atomicity checks 
+
+template<class T>
+struct is_atomic : std::false_type 
+{
+};
+
+template<class T>
+struct is_atomic<std::atomic<T>> : std::true_type
+{
+};
+
+// Wait-free check
+
+template<class Container, class = void>
+struct is_wait_free : std::false_type
+{
+};
+
+// std::array is wait-free
+template<class T, size_t MaxSize>
+struct is_wait_free<std::array<T, MaxSize>> : std::true_type
+{
+}; 
+
+// Container marked as wait-free is wait-free
+template<class Container>
+struct is_wait_free<
+    Container,
+    typename std::enable_if<Container::is_wait_free()>::type
+> : std::true_type
+{
+};
+
+// std::atomic is wait-free if it is lock-free (depending on T)
+template<>
+struct is_wait_free<std::atomic<bool>> 
+: 
+#if ATOMIC_BOOL_LOCK_FREE == 2
+    std::true_type
+#else
+    std::false_type
+#endif
+{
+};
+
+template<class T>
+struct is_wait_free<
+    std::atomic<T>,
+    typename std::enable_if<is_char<T>::value>::type
+> 
+: 
+#if ATOMIC_CHAR_LOCK_FREE == 2
+    std::true_type
+#else
+    std::false_type
+#endif
+{
+};
+
+template<>
+struct is_wait_free<std::atomic<char16_t>> 
+: 
+#if ATOMIC_CHAR16_T_LOCK_FREE == 2
+    std::true_type
+#else
+    std::false_type
+#endif
+{
+};
+
+template<>
+struct is_wait_free<std::atomic<char32_t>> 
+: 
+#if ATOMIC_CHAR32_T_LOCK_FREE == 2
+    std::true_type
+#else
+    std::false_type
+#endif
+{
+};
+
+template<>
+struct is_wait_free<std::atomic<wchar_t>> 
+: 
+#if ATOMIC_WCHAR_T_LOCK_FREE == 2
+    std::true_type
+#else
+    std::false_type
+#endif
+{
+};
+
+template<class T>
+struct is_wait_free<
+    std::atomic<T>,
+    typename std::enable_if<is_short<T>::value>::type
+> 
+: 
+#if ATOMIC_SHORT_LOCK_FREE == 2
+    std::true_type
+#else
+    std::false_type
+#endif
+{
+};
+
+template<class T>
+struct is_wait_free<
+    std::atomic<T>,
+    typename std::enable_if<is_int<T>::value>::type
+> 
+: 
+#if ATOMIC_INT_LOCK_FREE == 2
+    std::true_type
+#else
+    std::false_type
+#endif
+{
+};
+
+template<class T>
+struct is_wait_free<
+    std::atomic<T>,
+    typename std::enable_if<is_long<T>::value>::type
+> 
+: 
+#if ATOMIC_LONG_LOCK_FREE == 2
+    std::true_type
+#else
+    std::false_type
+#endif
+{
+};
+
+template<class T>
+struct is_wait_free<
+    std::atomic<T>,
+    typename std::enable_if<is_long_long<T>::value>::type
+> 
+: 
+#if ATOMIC_LLONG_LOCK_FREE == 2
+    std::true_type
+#else
+    std::false_type
+#endif
+{
+};
+
+template<class T>
+struct is_wait_free<std::atomic<T*>> 
+: 
+#if ATOMIC_POINTER_LOCK_FREE == 2
+    std::true_type
+#else
+    std::false_type
+#endif
+{
+};
+
+// nonatomic subtype if provided
+template<class T, class = void>
+struct nonatomic
+{
+    typedef T type;
+};
+
+template<class T>
+struct nonatomic<T, typename T::nonatomic>
+{
+    typedef typename T::nonatomic type;
+};
+
+template<class T>
+struct nonatomic<std::atomic<T>>
+{
+    typedef T type;
+};
+
+#if 1
+template<class U1, class U2>
+struct nonatomic<std::pair<U1, U2>>
+{
+    typedef std::pair<
+        typename nonatomic<U1>::type,
+        //typename nonatomic<U2>::type
+        typename U2::nonatomic
+    > type;
+};
+#endif
 
 } // types
 
