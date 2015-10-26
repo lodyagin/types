@@ -1,7 +1,7 @@
-// -*-coding: mule-utf-8-unix; fill-column: 58; -*-
 /**
  * @file
  * enum-like constexpr class.
+ * You can easily convert between int value of enum and string name.
  *
  * This file (originally) was a part of public
  * https://github.com/lodyagin/types repository.
@@ -44,9 +44,10 @@
 #include <ios>
 #include <cassert>
 #include <functional>
-#include <vector>
 #include <iterator>
-#include "types/typeinfo.h"
+#include <string>
+#include <vector>
+#include "typeinfo.h"
 
 #ifndef TYPES_ENUM_H
 #define TYPES_ENUM_H
@@ -56,10 +57,10 @@ namespace types {
 namespace enum_ {
 
 //! get a name of enum value
-template<class EnumVal>
-std::string get_name()
+template<class EnumVal, class String = std::string>
+String get_name()
 {
-  auto type_name = type<EnumVal>::name();
+  auto type_name = type_of<EnumVal>::template name<String>();
   // select only type name, discard namespace
   auto pos = type_name.find_last_of(':');
   if (pos != decltype(type_name)::npos)
@@ -80,10 +81,10 @@ protected:
 public:
   using int_type = Int;
 
-  static const std::string& name() 
+  template<class String = std::string>
+  static const String& name() 
   { 
-    static std::string empty_name;
-    return empty_name;
+    return (String) "";
   }
 
   static constexpr Int index()
@@ -93,7 +94,7 @@ public:
 
 protected:
   template<class It>
-  static void fill_names(It it) 
+  static void fill_names(It) 
   {
   }
 };
@@ -114,22 +115,25 @@ public:
   using base::name;
   using base::index;
 
-  static const std::string& name(Val) 
+  template<class String = std::string>
+  static const String& name(const Val&) 
   {
-    static std::string the_name = get_name<Val>();
+    static String the_name = get_name<Val, String>();
     return the_name;
   }
 
-  static constexpr Int index(Val)
+  static constexpr Int index(const Val&)
   {
     return n;
   }
+
+  
 
 protected:
   template<class It>
   static void fill_names(It it)
   {
-    *it++ = std::cref(name(Val()));
+    *it++ = std::cref(name(*(Val*)0));
     base::fill_names(it);
   }
 };
@@ -153,7 +157,7 @@ public:
   static const std::string& name(int_type idx)
   {
     static vector names = init_names();
-    assert(idx >= 0 && idx < names.size());
+    assert(idx >= 0 && (decltype(names.size())) idx < names.size());
     return names[idx];
   }
 
@@ -184,10 +188,13 @@ public:
   using meta::name;
   using meta::index;
 
-  enumerate() {}
+  enumerate() noexcept {}
 
-  template<class EnumVal>
-  enumerate(EnumVal val) : idx(index(val)) {}
+  template<
+    class EnumVal,
+    decltype(index(*(EnumVal*)0)) = 0
+  >
+  enumerate(const EnumVal& val) : idx(index(val)) {}
 
   const std::string& name() const
   {
@@ -204,9 +211,52 @@ public:
     return sizeof...(Vals);
   }
 
+  bool operator==(const enumerate& b) const
+  {
+    return idx == b.idx;
+  }
+
+  template<
+    class E2,
+    decltype(index(E2())) = 0
+  >
+  bool operator==(const E2& b) const
+  {
+    return index(b) == idx;
+  }
+
+  template<class E1, class I2, class... Vs2>
+  friend bool operator==(const E1& a, const enumerate<I2, Vs2...>& b);
+
+#if 0
+  template<
+    class String,
+    decltype(std::declval<String>().substr(0, 1)) = 0
+  >
+  bool operator==(const String& b) const
+  {
+    return b == name();
+  }
+
+  bool operator==(const char* b) const
+  {
+    return name() == b;
+  }
+
+    // you need const char*, Int and uintmax_t for eliminate errors
+  bool operator==(Int) const;
+  bool operator==(uintmax_t) const;
+#endif
+
 protected:
   Int idx;
 };
+
+template<class E1, class I2, class... Vs2>
+bool operator==(const E1& a, const enumerate<I2, Vs2...>& b)
+{
+  return b.operator==(a);
+}
 
 // i.e. enum_type_index<red>() or enum_type_index(red())
 template<class EnumVal>
