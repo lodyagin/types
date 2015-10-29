@@ -45,11 +45,12 @@
 #include <cassert>
 #include <functional>
 #include <iterator>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
-#include "pair.h"
-#include "typeinfo.h"
+#include "types/typeinfo.h"
 
 #ifndef TYPES_ENUM_H
 #define TYPES_ENUM_H
@@ -154,9 +155,11 @@ class base
   >;
   using map = std::unordered_map<
     std::reference_wrapper<const std::string>,
-    typename vector::size_type
+    typename vector::size_type,
+    std::hash<std::string>,
+    std::equal_to<std::string>
   >;
-  using dictionary = types::pair<vector, map>;
+  using dictionary = std::pair<vector, map>;
 
 public:
   using int_type = Int;
@@ -164,7 +167,14 @@ public:
   static const std::string& name(int_type idx)
   {
     const auto& names = dict().first;
-    assert(idx >= 0 && (decltype(names.size())) idx < names.size());
+    if (
+      __builtin_expect(
+        !(idx >= 0 && (decltype(names.size())) idx < names.size()),
+        0
+      ))
+    {
+      throw std::domain_error("the enum value is out of range");
+    }
     return names[idx];
   }
 
@@ -199,6 +209,9 @@ private:
 
 } // enum_
 
+
+/* =======================[   enumerate   ]======================== */
+
 template<class Int, class... Vals>
 class enumerate 
   : public enum_::meta<Int, sizeof...(Vals), Vals...>,
@@ -231,6 +244,12 @@ public:
   int_type index() const
   {
     return idx;
+  }
+
+  template<int_type NotFound, class String>
+  static enumerate parse(const String& s)
+  {
+    return enumerate(base::template lookup<NotFound>(s));
   }
 
   static constexpr std::size_t size()
@@ -331,10 +350,23 @@ operator << (
   enumerate<Int, EnumVals...> v
 )
 {
-  return (out.iword(enum_::xalloc())) 
-    ? out << (intmax_t) v.index() // prevent printing 
-                                  // int8_t as char
-    : out << v.name();
+  if (out.iword(enum_::xalloc()))
+  {
+    out << (intmax_t) v.index(); // prevent printing 
+                                 // int8_t as char
+  }
+  else
+  {
+    try
+    {
+      out << v.name();
+    }
+    catch (...)
+    {
+      out << '*';
+    }
+  }
+  return out;
 }
 
 #if 0

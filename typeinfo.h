@@ -103,9 +103,10 @@ struct type_of
   }
 
   //! Returns a demangled Type name
-  static std::string name()
+  template<class String = std::string>
+  static String name()
   {
-    return ::types::demangled_name(typeid(T));
+    return (String) ::types::demangled_name(typeid(T));
   }
 
   //! For use in context where no dynamic memory
