@@ -257,6 +257,16 @@ public:
     return sizeof...(Vals);
   }
 
+  static constexpr int_type min()
+  {
+    return 0;
+  }
+
+  static constexpr int_type max()
+  {
+    return (int_type) size() - 1;
+  }
+  
   bool operator==(const enumerate& b) const
   {
     return idx == b.idx;
