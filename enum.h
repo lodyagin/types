@@ -46,7 +46,9 @@
 #include <functional>
 #include <iterator>
 #include <string>
+#include <unordered_map>
 #include <vector>
+#include "pair.h"
 #include "typeinfo.h"
 
 #ifndef TYPES_ENUM_H
@@ -69,6 +71,7 @@ String get_name()
     return type_name;
 };
 
+//! The enum meta information type
 template<class Int, Int N, class... Vals>
 class meta;
 
@@ -127,8 +130,6 @@ public:
     return n;
   }
 
-  
-
 protected:
   template<class It>
   static void fill_names(It it)
@@ -144,31 +145,55 @@ static int xalloc()
   return xalloc_;
 }
 
+//! Contains the names array
 template<class Int, class... Vals>
 class base
 {
   using vector = std::vector<
     std::reference_wrapper<const std::string>
   >;
+  using map = std::unordered_map<
+    std::reference_wrapper<const std::string>,
+    typename vector::size_type
+  >;
+  using dictionary = types::pair<vector, map>;
 
 public:
   using int_type = Int;
 
   static const std::string& name(int_type idx)
   {
-    static vector names = init_names();
+    const auto& names = dict().first;
     assert(idx >= 0 && (decltype(names.size())) idx < names.size());
     return names[idx];
   }
 
-private:
-  static vector init_names()
+  template<int_type NotFound, class String>
+  static int_type lookup(const String& s)
   {
-    vector res;
-    res.reserve(sizeof...(Vals));
+    const auto& indexes = dict().second;
+    const auto it = indexes.find(s);
+    return (it != indexes.end()) ? it->second : NotFound;
+  }
+
+private:
+  static dictionary& dict() 
+  {
+    static dictionary the_dict = build_dictionary();
+    return the_dict;
+  }
+
+  static dictionary build_dictionary()
+  {
+    dictionary d;
+    d.first.reserve(sizeof...(Vals));
     meta<Int, sizeof...(Vals), Vals...>
-      ::fill_names(std::back_inserter(res));
-    return res;
+      ::fill_names(std::back_inserter(d.first));
+    for (size_t i = 0; i < d.first.size(); i++)
+    {
+        d.second[d.first[i]] = i;
+    }
+    return d;
   }
 };
 
@@ -189,6 +214,8 @@ public:
   using meta::index;
 
   enumerate() noexcept {}
+
+  explicit enumerate(Int i) : idx(i) {}
 
   template<
     class EnumVal,
