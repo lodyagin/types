@@ -300,6 +300,43 @@ struct ctr_args<C, decltype(C(std::declval<A1>()))>
 };
 #endif
 
+template<class A, class B, class Enable = void>
+struct is_member;
+
+template<class A>
+struct is_member<A, std::tuple<>> : std::false_type {};
+
+template<class A, class... B>
+struct is_member<A, std::tuple<A, B...>> : std::true_type {};
+
+template<class A, class B0, class... B>
+struct is_member<A, std::tuple<B0, B...>>
+: std::integral_constant<bool, is_member<A, std::tuple<B...>>::value>
+{
+};
+
+template<class A, class B, class Enable = void>
+struct is_subset;
+
+template<class... B>
+struct is_subset< std::tuple<>, std::tuple<B...> > : std::true_type
+{
+};
+
+template<class A0, class... A, class... B>
+struct is_subset<
+  std::tuple<A0, A...>,
+  std::tuple<B...>
+>
+: std::integral_constant<
+    bool,
+    is_member<A0, std::tuple<B...>>::value
+    && is_subset<std::tuple<A...>, std::tuple<B...>>::value
+>
+{
+};
+
+
 } // types
 
 #endif
