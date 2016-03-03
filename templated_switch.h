@@ -1,12 +1,13 @@
 // -*-coding: mule-utf-8-unix; fill-column: 58; -*-
 /**
  * @file
+ * "case" operator version for code with variardic templates.
  *
  * This file (originally) was a part of public
  * https://github.com/lodyagin/types repository.
  *
  * @author Sergei Lodyagin
- * @copyright Copyright (c) 2014, Sergei Lodyagin
+ * @copyright Copyright (c) 2015, Sergei Lodyagin
  *
  * All rights reserved.
  *
@@ -40,26 +41,53 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef TYPES_TEMPLATED_SWITCH_H
+#define TYPES_TEMPLATED_SWITCH_H
 
-#ifndef TYPES_EXT_CONSTR_H
-#define TYPES_EXT_CONSTR_H
+#include <tuple>
+#include <utility>
+#include "types/meta.h"
 
-namespace types {
-
-//! T is a type to be constructed externally by a placement
-//! new operator. It will also never call a destructor for
-//! the object.
-template<class T>
-union externally_constructed
+namespace types
 {
-  typedef T type;
 
-  externally_constructed() {} // it is
-  ~externally_constructed() {} // never
-  T m;
-};
+// It calls function based on a key, like an ordinary C language
+// switch operator does. It returns false if no case for this key
+// provided (C switch "default" action).
+// It is implemented as a recursion.
 
+template<class Selector, class Pars>
+bool do_switch(const Selector&, Pars&&)
+{
+    return false;
 }
 
+// TODO hashtable implementation (test performance first)
+template<class Selector, class Pars, class Case, class... Cases>
+bool do_switch(
+    const Selector& key, 
+    Pars&& pars, 
+    Case case0, 
+    Cases... cases
+)
+{
+    return tuple::call(case0, std::forward<Pars>(pars), key)
+        || do_switch(key, std::forward<Pars>(pars), cases...);
+}
+
+template<class Selector, class Case, class Fun, class... Pars>
+bool switch_case(
+    const Selector& key, 
+    const Case& case_, 
+    Fun fun, 
+    Pars&&... pars
+)
+{
+    return (key == case_) 
+        ? (fun(std::forward<Pars>(pars)...), true) 
+        : false;
+}
+
+}
 
 #endif

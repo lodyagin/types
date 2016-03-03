@@ -1,41 +1,55 @@
-/* -*-coding: mule-utf-8-unix; fill-column: 58; -*- *******
-
-  Copyright (C) 2009, 2013 Sergei Lodyagin 
- 
-  This file is part of the Cohors Concurro library.
-
-  This library is free software: you can redistribute it
-  and/or modify it under the terms of the GNU Lesser
-  General Public License as published by the Free Software
-  Foundation, either version 3 of the License, or (at your
-  option) any later version.
-
-  This library is distributed in the hope that it will be
-  useful, but WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A
-  PARTICULAR PURPOSE.  See the GNU Lesser General Public
-  License for more details.
-
-  You should have received a copy of the GNU Lesser General
-  Public License along with this program.  If not, see
-  <http://www.gnu.org/licenses/>.
-*/
-
+// -*-coding: mule-utf-8-unix; fill-column: 58; -*-
 /**
  * @file
  * Metaprogramming primitives.
  *
+ * This file (originally) was a part of public
+ * https://github.com/lodyagin/types repository.
+ *
  * @author Sergei Lodyagin
+ * @copyright Copyright (c) 2014, Sergei Lodyagin
+ *
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with
+ * or without modification, are permitted provided that
+ * the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above
+ * copyright notice, this list of conditions and the
+ * following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the
+ * above copyright notice, this list of conditions and the
+ * following disclaimer in the documentation and/or other
+ * materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+ * THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+ * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+ * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef CONCURRO_TYPES_META_H_
-#define CONCURRO_TYPES_META_H_
+
+#ifndef TYPES_META_H_
+#define TYPES_META_H_
 
 #include <type_traits>
 #include <tuple>
 #include <utility>
 
-namespace curr { 
+namespace types { 
 
 //! Check whether `Check' is true (it is typically a
 //! metaprogramming predicate with a value member of a
@@ -87,6 +101,19 @@ auto call_(seq<S...>, const Tuple& tup)
   return Fun(std::get<S>(tup)...);
 }
 
+template<class Fun, class Tuple, int... S, class... Pars>
+auto call_(Fun fun, seq<S...>, Tuple&& tup, Pars&&... pars)
+  -> decltype(fun(
+         std::forward<Pars>(pars)..., // non-tuple parameters
+         std::get<S>(std::forward<Tuple>(tup))...
+     ))
+{
+  return fun(
+    std::forward<Pars>(pars)..., // non-tuple parameters
+    std::get<S>(std::forward<Tuple>(tup))...
+  );
+}
+
 template<class Fun, class Tuple>
 auto call(const Tuple& pars) 
   -> decltype(
@@ -99,6 +126,25 @@ auto call(const Tuple& pars)
   return call_<Fun>(
     typename gens<std::tuple_size<Tuple>::value>::type(),
     pars
+  );
+}
+
+template<class Fun, class Tuple, class... Pars2>
+auto call(Fun fun, Tuple&& pars, Pars2&&... pars2) 
+  -> decltype(
+    call_(
+      fun,
+      typename gens<std::tuple_size<Tuple>::value>::type(),
+      std::forward<Tuple>(pars),
+      std::forward<Pars2>(pars2)...
+    )
+  )
+{
+  return call_<Fun>(
+    fun,
+    typename gens<std::tuple_size<Tuple>::value>::type(),
+    std::forward<Tuple>(pars),
+    std::forward<Pars2>(pars2)...
   );
 }
 
@@ -253,6 +299,43 @@ struct ctr_args<C, decltype(C(std::declval<A1>()))>
   static constexpr int n = 1;
 };
 #endif
+
+template<class A, class B, class Enable = void>
+struct is_member;
+
+template<class A>
+struct is_member<A, std::tuple<>> : std::false_type {};
+
+template<class A, class... B>
+struct is_member<A, std::tuple<A, B...>> : std::true_type {};
+
+template<class A, class B0, class... B>
+struct is_member<A, std::tuple<B0, B...>>
+: std::integral_constant<bool, is_member<A, std::tuple<B...>>::value>
+{
+};
+
+template<class A, class B, class Enable = void>
+struct is_subset;
+
+template<class... B>
+struct is_subset< std::tuple<>, std::tuple<B...> > : std::true_type
+{
+};
+
+template<class A0, class... A, class... B>
+struct is_subset<
+  std::tuple<A0, A...>,
+  std::tuple<B...>
+>
+: std::integral_constant<
+    bool,
+    is_member<A0, std::tuple<B...>>::value
+    && is_subset<std::tuple<A...>, std::tuple<B...>>::value
+>
+{
+};
+
 
 } // types
 

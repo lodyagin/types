@@ -1,6 +1,7 @@
 // -*-coding: mule-utf-8-unix; fill-column: 58; -*-
 /**
  * @file
+ * A constexpr arithmetic.
  *
  * This file (originally) was a part of public
  * https://github.com/lodyagin/types repository.
@@ -40,26 +41,71 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef TYPES_CONSTEXPR_MATH_H
+#define TYPES_CONSTEXPR_MATH_H
 
-#ifndef TYPES_EXT_CONSTR_H
-#define TYPES_EXT_CONSTR_H
+#include <cstdint>
 
 namespace types {
 
-//! T is a type to be constructed externally by a placement
-//! new operator. It will also never call a destructor for
-//! the object.
-template<class T>
-union externally_constructed
+// FIXME add overflow
+template<uintmax_t x>
+struct log2x 
 {
-  typedef T type;
-
-  externally_constructed() {} // it is
-  ~externally_constructed() {} // never
-  T m;
+  enum : uintmax_t{ value = log2x<(x >> 1)>::value + 1 };
 };
 
+template<> 
+struct log2x<1>
+{
+  enum { value = 0 };
+};
+
+// FIXME add overflow
+// value is number of radix digits in x
+template<unsigned radix, uintmax_t x>
+struct digits
+{
+  enum : uintmax_t{ value = digits<radix, x / radix>::value + 1 };
+};
+
+template<unsigned radix> 
+struct digits<radix, 0> { enum { value = 0}; };
+
+template<uint8_t x>
+struct pow2x
+{
+  enum : uintmax_t { value = 2 * pow2x<x - 1>::value };
+};
+
+template<>
+struct pow2x<0>
+{
+  enum : uintmax_t { value = 1 };
+};
+
+template<uint8_t x>
+struct pow10x
+{
+  enum : uintmax_t { value = 10 * pow10x<x - 1>::value };
+};
+
+template<>
+struct pow10x<0>
+{
+  enum : uintmax_t { value = 1 };
+};
+
+//! Return mask with n lower bits set
+template<uint8_t n, class T = uint8_t>
+constexpr T n_bits_mask()
+{
+  return pow2x<n+1>::value - 1;
 }
 
+} // types
 
 #endif
+
+
+

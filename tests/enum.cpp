@@ -35,4 +35,6 @@ int main(int argc, char* argv[])
   std::cout << colours(indigo()) << std::endl;
   std::cout << noenumalpha << colour << enumalpha 
     << colour << std::endl;
+  std::cout << colours::parse<-3>(std::string("violet")) << std::endl;
+  std::cout << colours::parse<-3>(std::string("VIOLET")) << std::endl;
 }

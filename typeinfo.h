@@ -1,12 +1,44 @@
-//-*-coding: mule-utf-8-unix; fill-column: 58; -*-
-///////////////////////////////////////////////////////////
-
+// -*-coding: mule-utf-8-unix; fill-column: 58; -*-
 /**
  * @file
  * Type information routines.
  *
+ * This file (originally) was a part of public
+ * https://github.com/lodyagin/types repository.
+ *
  * @author Sergei Lodyagin
- * @copyright Copyright (C) 2013 Cohors LLC 
+ * @copyright Copyright (c) 2014, Sergei Lodyagin
+ *
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with
+ * or without modification, are permitted provided that
+ * the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above
+ * copyright notice, this list of conditions and the
+ * following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the
+ * above copyright notice, this list of conditions and the
+ * following disclaimer in the documentation and/or other
+ * materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+ * THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+ * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+ * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef TYPES_TYPEINFO_H
@@ -54,54 +86,37 @@ inline std::string demangled_name(
   return demangled_name(std::type_index(info));
 }
 
-#if 0
-template<int16_t MaxLen>
-inline auto_string<MaxLen> mangled_name(
-  const std::type_index& idx
-)
+template<class String>
+String mangled_name(std::type_index code)
 {
-   const std::string name = idx.name();
-   return auto_string<MaxLen>(
-     // get the last (most informative) part of the name
-     std::max(name.begin(), name.end() - name.size()),
-     name.end()
-   );
+    return (String) code.name();
 }
 
-template<int16_t MaxLen>
-inline auto_string<MaxLen> mangled_name(
-  const std::type_info& info
-)
+template<class T>
+struct type_of
 {
-  return mangled_name<MaxLen>(std::type_index(info));
-}
-#endif
-
-template<class Type/*, int16_t MaxLen = 40*/>
-struct type
-{
-//  static constexpr int16_t max_len = MaxLen;
+  // unique code for each type
+  static std::type_index code() noexcept
+  { 
+      static std::type_index idx(typeid(T)); 
+      return idx;
+  }
 
   //! Returns a demangled Type name
-  static std::string name()
+  template<class String = std::string>
+  static String name()
   {
-    return ::types::demangled_name(typeid(Type));
+    return (String) ::types::demangled_name(typeid(T));
   }
 
   //! For use in context where no dynamic memory
   //! operations are desirable (e.g., throwing an
   //! exception). 
-  static const char* mangled_name()
+  template<class String>
+  static String mangled_name()
   {
-    return typeid(Type).name();
+      return (String) typeid(T).name();
   }
-
-#if 0
-  operator auto_string<max_len>() const
-  {
-    return mangled_name();
-  }
-#endif
 };
 
 } // types

@@ -1,17 +1,55 @@
-// -*-coding: mule-utf-8-unix; fill-column: 58; -*-
 /**
  * @file
  * enum-like constexpr class.
+ * You can easily convert between int value of enum and string name.
+ *
+ * This file (originally) was a part of public
+ * https://github.com/lodyagin/types repository.
  *
  * @author Sergei Lodyagin
- * @copyright Copyright (C) 2013 Cohors LLC 
+ * @copyright Copyright (c) 2014, Sergei Lodyagin
+ *
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with
+ * or without modification, are permitted provided that
+ * the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above
+ * copyright notice, this list of conditions and the
+ * following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the
+ * above copyright notice, this list of conditions and the
+ * following disclaimer in the documentation and/or other
+ * materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+ * THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+ * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+ * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+ * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <ios>
 #include <cassert>
 #include <functional>
-#include <vector>
 #include <iterator>
+#include <stdexcept>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 #include "types/typeinfo.h"
 
 #ifndef TYPES_ENUM_H
@@ -22,10 +60,10 @@ namespace types {
 namespace enum_ {
 
 //! get a name of enum value
-template<class EnumVal>
-std::string get_name()
+template<class EnumVal, class String = std::string>
+String get_name()
 {
-  auto type_name = type<EnumVal>::name();
+  auto type_name = type_of<EnumVal>::template name<String>();
   // select only type name, discard namespace
   auto pos = type_name.find_last_of(':');
   if (pos != decltype(type_name)::npos)
@@ -34,6 +72,7 @@ std::string get_name()
     return type_name;
 };
 
+//! The enum meta information type
 template<class Int, Int N, class... Vals>
 class meta;
 
@@ -46,10 +85,10 @@ protected:
 public:
   using int_type = Int;
 
-  static const std::string& name() 
+  template<class String = std::string>
+  static const String& name() 
   { 
-    static std::string empty_name;
-    return empty_name;
+    return (String) "";
   }
 
   static constexpr Int index()
@@ -59,7 +98,7 @@ public:
 
 protected:
   template<class It>
-  static void fill_names(It it) 
+  static void fill_names(It) 
   {
   }
 };
@@ -80,13 +119,14 @@ public:
   using base::name;
   using base::index;
 
-  static const std::string& name(Val) 
+  template<class String = std::string>
+  static const String& name(const Val&) 
   {
-    static std::string the_name = get_name<Val>();
+    static String the_name = get_name<Val, String>();
     return the_name;
   }
 
-  static constexpr Int index(Val)
+  static constexpr Int index(const Val&)
   {
     return n;
   }
@@ -95,7 +135,7 @@ protected:
   template<class It>
   static void fill_names(It it)
   {
-    *it++ = std::cref(name(Val()));
+    *it++ = std::cref(name(*(Val*)0));
     base::fill_names(it);
   }
 };
@@ -106,35 +146,71 @@ static int xalloc()
   return xalloc_;
 }
 
+//! Contains the names array
 template<class Int, class... Vals>
 class base
 {
   using vector = std::vector<
     std::reference_wrapper<const std::string>
   >;
+  using map = std::unordered_map<
+    std::reference_wrapper<const std::string>,
+    typename vector::size_type,
+    std::hash<std::string>,
+    std::equal_to<std::string>
+  >;
+  using dictionary = std::pair<vector, map>;
 
 public:
   using int_type = Int;
 
   static const std::string& name(int_type idx)
   {
-    static vector names = init_names();
-    assert(idx >= 0 && idx < names.size());
+    const auto& names = dict().first;
+    if (
+      __builtin_expect(
+        !(idx >= 0 && (decltype(names.size())) idx < names.size()),
+        0
+      ))
+    {
+      throw std::domain_error("the enum value is out of range");
+    }
     return names[idx];
   }
 
-private:
-  static vector init_names()
+  template<int_type NotFound, class String>
+  static int_type lookup(const String& s)
   {
-    vector res;
-    res.reserve(sizeof...(Vals));
+    const auto& indexes = dict().second;
+    const auto it = indexes.find(s);
+    return (it != indexes.end()) ? it->second : NotFound;
+  }
+
+private:
+  static dictionary& dict() 
+  {
+    static dictionary the_dict = build_dictionary();
+    return the_dict;
+  }
+
+  static dictionary build_dictionary()
+  {
+    dictionary d;
+    d.first.reserve(sizeof...(Vals));
     meta<Int, sizeof...(Vals), Vals...>
-      ::fill_names(std::back_inserter(res));
-    return res;
+      ::fill_names(std::back_inserter(d.first));
+    for (size_t i = 0; i < d.first.size(); i++)
+    {
+        d.second[d.first[i]] = i;
+    }
+    return d;
   }
 };
 
 } // enum_
+
+
+/* =======================[   enumerate   ]======================== */
 
 template<class Int, class... Vals>
 class enumerate 
@@ -150,10 +226,15 @@ public:
   using meta::name;
   using meta::index;
 
-  enumerate() {}
+  enumerate() noexcept {}
 
-  template<class EnumVal>
-  enumerate(EnumVal val) : idx(index(val)) {}
+  explicit enumerate(Int i) : idx(i) {}
+
+  template<
+    class EnumVal,
+    decltype(index(*(EnumVal*)0)) = 0
+  >
+  enumerate(const EnumVal& val) : idx(index(val)) {}
 
   const std::string& name() const
   {
@@ -165,14 +246,73 @@ public:
     return idx;
   }
 
+  template<int_type NotFound, class String>
+  static enumerate parse(const String& s)
+  {
+    return enumerate(base::template lookup<NotFound>(s));
+  }
+
   static constexpr std::size_t size()
   {
     return sizeof...(Vals);
   }
 
+  static constexpr int_type min()
+  {
+    return 0;
+  }
+
+  static constexpr int_type max()
+  {
+    return (int_type) size() - 1;
+  }
+  
+  bool operator==(const enumerate& b) const
+  {
+    return idx == b.idx;
+  }
+
+  template<
+    class E2,
+    decltype(index(E2())) = 0
+  >
+  bool operator==(const E2& b) const
+  {
+    return index(b) == idx;
+  }
+
+  template<class E1, class I2, class... Vs2>
+  friend bool operator==(const E1& a, const enumerate<I2, Vs2...>& b);
+
+#if 0
+  template<
+    class String,
+    decltype(std::declval<String>().substr(0, 1)) = 0
+  >
+  bool operator==(const String& b) const
+  {
+    return b == name();
+  }
+
+  bool operator==(const char* b) const
+  {
+    return name() == b;
+  }
+
+    // you need const char*, Int and uintmax_t for eliminate errors
+  bool operator==(Int) const;
+  bool operator==(uintmax_t) const;
+#endif
+
 protected:
   Int idx;
 };
+
+template<class E1, class I2, class... Vs2>
+bool operator==(const E1& a, const enumerate<I2, Vs2...>& b)
+{
+  return b.operator==(a);
+}
 
 // i.e. enum_type_index<red>() or enum_type_index(red())
 template<class EnumVal>
@@ -220,10 +360,23 @@ operator << (
   enumerate<Int, EnumVals...> v
 )
 {
-  return (out.iword(enum_::xalloc())) 
-    ? out << (intmax_t) v.index() // prevent printing 
-                                  // int8_t as char
-    : out << v.name();
+  if (out.iword(enum_::xalloc()))
+  {
+    out << (intmax_t) v.index(); // prevent printing 
+                                 // int8_t as char
+  }
+  else
+  {
+    try
+    {
+      out << v.name();
+    }
+    catch (...)
+    {
+      out << '*';
+    }
+  }
+  return out;
 }
 
 #if 0

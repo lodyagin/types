@@ -2,3 +2,4 @@
 *#*
 *.o
 *_test
+tests/enum
