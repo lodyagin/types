@@ -14,7 +14,7 @@
 
 //#include <iostream>
 //#include <streambuf>
-//#include <string>
+#include <string>
 #include <array>
 #include <cstdint>
 #include <limits>
