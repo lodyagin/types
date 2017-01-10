@@ -45,6 +45,7 @@
 #include <cassert>
 #include <functional>
 #include <iterator>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -126,17 +127,17 @@ public:
     return the_name;
   }
 
-  static constexpr Int index(const Val&)
-  {
-    return n;
-  }
-
 protected:
   template<class It>
   static void fill_names(It it)
   {
     *it++ = std::cref(name(*(Val*)0));
     base::fill_names(it);
+  }
+
+  static constexpr Int index(const Val&)
+  {
+    return n;
   }
 };
 
@@ -214,44 +215,54 @@ private:
 
 template<class Int, class... Vals>
 class enumerate 
-  : public enum_::meta<Int, sizeof...(Vals), Vals...>,
-    public enum_::base<Int, Vals...>
+  : protected enum_::meta<Int, sizeof...(Vals), Vals...>,
+    protected enum_::base<Int, Vals...>
 {
   using meta = enum_::meta<Int,sizeof...(Vals),Vals...>;
   using base = enum_::base<Int, Vals...>;
 
 public:
-  using typename base::int_type;
-
   using meta::name;
-  using meta::index;
 
-  enumerate() noexcept {}
+  constexpr enumerate() : idx(bottom_idx) {}
 
-  explicit enumerate(Int i) : idx(i) {}
+  /*static enumerate from_index(Int i)
+  {
+    return enumerate(i);
+  }*/
 
   template<
     class EnumVal,
-    decltype(index(*(EnumVal*)0)) = 0
+    decltype(meta::index(*(EnumVal*)0)) = 0
   >
-  enumerate(const EnumVal& val) : idx(index(val)) {}
+  constexpr enumerate(const EnumVal& val) : idx(meta::index(val)) {}
 
   const std::string& name() const
   {
-    return base::name(idx);
+    if (__builtin_expect(idx != bottom_idx, 1))
+    {
+        return base::name(idx);
+    }
+    else
+    {
+        static std::string na = "<N/A>";
+        return na;
+    }
   }
 
-  int_type index() const
+/*  constexpr int_type index() const
   {
     return idx;
   }
+*/
 
-  template<int_type NotFound, class String>
+  template<class String>
   static enumerate parse(const String& s)
   {
-    return enumerate(base::template lookup<NotFound>(s));
+    return enumerate(base::template lookup<bottom_idx>(s));
   }
 
+/*
   static constexpr std::size_t size()
   {
     return sizeof...(Vals);
@@ -266,23 +277,31 @@ public:
   {
     return (int_type) size() - 1;
   }
+
+  constexpr explicit operator int_type() const
+  {
+    return index();
+  }
   
-  bool operator==(const enumerate& b) const
+  constexpr bool operator==(const enumerate& b) const
+*/
+
+  constexpr bool operator==(const enumerate& b) const
   {
     return idx == b.idx;
   }
 
   template<
     class E2,
-    decltype(index(E2())) = 0
+    decltype(meta::index(E2())) = 0
   >
-  bool operator==(const E2& b) const
+  constexpr bool operator==(const E2& b) const
   {
-    return index(b) == idx;
+    return meta::index(b) == idx;
   }
 
   template<class E1, class I2, class... Vs2>
-  friend bool operator==(const E1& a, const enumerate<I2, Vs2...>& b);
+  friend constexpr bool operator==(const E1& a, const enumerate<I2, Vs2...>& b);
 
 #if 0
   template<
@@ -304,12 +323,124 @@ public:
   bool operator==(uintmax_t) const;
 #endif
 
+  template<class T>
+  constexpr bool operator!=(const T& b) const
+  {
+    return ! operator==(b);
+  }
+
+  // TODO move in the enumeration set class?
+  constexpr enumerate begin() const
+  {
+    return enumerate(0);
+  }
+
+  constexpr enumerate end() const
+  {
+    return enumerate(size());
+  }
+
+  // a special value means "undefined"
+  constexpr static enumerate bottom()
+  {
+    return enumerate(bottom_idx);
+  }
+
+  enumerate& operator++()
+  {
+    if (__builtin_expect(++idx >= size(), 0))
+    {
+      idx = bottom_idx;
+    }
+    return *this;
+  }
+
+  enumerate& operator*()
+  {
+    return *this;
+  }
+
+  static constexpr typename meta::int_type size()
+  {
+    return sizeof...(Vals);
+  }
+
 protected:
+  // means "NA"
+  constexpr static Int bottom_idx = std::numeric_limits<Int>::max();
+
   Int idx;
+
+  // It is protected to allow safely build
+  // template<class T> method accepting
+  // the enumerate in different form
+  // supported by public constructors
+  // e.g. string, EnumVal type, enumerate etc.
+  explicit enumerate(Int i) : idx(i) {}
 };
 
+//! The enumerate class which is convertible to Int type
+template<class Int, class... Vals>
+class convertible_enumerate : public enumerate<Int, Vals...>
+{
+    using base = enumerate<Int, Vals...>;
+
+public:
+  using int_type = Int;
+  using base::index;
+
+  constexpr convertible_enumerate()  {}
+
+  template<class EnumVal>
+  constexpr convertible_enumerate(const EnumVal& val) : base(val) {}
+
+  constexpr convertible_enumerate(int_type i) : base(i) {}
+
+  static convertible_enumerate from_index(Int i)
+  {
+    return convertible_enumerate(i);
+  }
+
+  constexpr int_type index() const
+  {
+    return this->idx;
+  }
+
+  template<class String>
+  static convertible_enumerate parse(const String& s)
+  {
+    return convertible_enumerate(base::template lookup<base::bottom_idx>(s));
+  }
+
+/*  static constexpr std::size_t size()
+  {
+    return sizeof...(Vals);
+  }
+*/
+
+  static constexpr int_type min()
+  {
+    return 0;
+  }
+
+  static constexpr int_type max()
+  {
+    return (int_type) base::size() - 1;
+  }
+
+  /*explicit*/ operator int_type() const
+  {
+    return index();
+  }
+};
+
+static_assert(
+    sizeof(convertible_enumerate<char, char, int>) == sizeof(char),
+    "cannot reinterpret cast from Int to type::enumerate"
+);
+
 template<class E1, class I2, class... Vs2>
-bool operator==(const E1& a, const enumerate<I2, Vs2...>& b)
+constexpr bool operator==(const E1& a, const enumerate<I2, Vs2...>& b)
 {
   return b.operator==(a);
 }
@@ -319,7 +450,7 @@ template<class EnumVal>
 struct enum_type_index
 {
   enum_type_index() {}
-  enum_type_index(EnumVal val) {}
+  enum_type_index(EnumVal) {}
 
   operator std::type_index() const
   {
@@ -358,6 +489,29 @@ std::basic_ostream<CharT, Traits>&
 operator << ( 
   std::basic_ostream<CharT, Traits>& out,
   enumerate<Int, EnumVals...> v
+)
+{
+    try
+    {
+      out << v.name();
+    }
+    catch (...)
+    {
+      out << '*';
+    }
+    return out;
+}
+
+template <
+  class CharT,
+  class Traits = std::char_traits<CharT>,
+  class Int,
+  class... EnumVals
+>
+std::basic_ostream<CharT, Traits>&
+operator << ( 
+  std::basic_ostream<CharT, Traits>& out,
+  convertible_enumerate<Int, EnumVals...> v
 )
 {
   if (out.iword(enum_::xalloc()))
