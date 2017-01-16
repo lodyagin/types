@@ -45,8 +45,9 @@
 #ifndef TYPES_TRAITS_H
 #define TYPES_TRAITS_H
 
-#include <atomic>
-#include <tuple>
+//#include <atomic>
+//#include <tuple>
+#include <iterator>
 #include <type_traits>
 #include <utility>
 
@@ -117,6 +118,7 @@ struct is_long_long<unsigned long long> : std::true_type
 { 
 };
 
+#if 0
 // Static asserts that all Ds are descendants of B
 template<class B, class... Ds>
 struct is_base_of_any;
@@ -399,8 +401,322 @@ struct nonatomic<std::pair<U1, U2>>
     > type;
 };
 #endif
+#endif
+
+/*  [========================[   is_char   ]=========================]*/
+                             
+template<class CharT>
+struct is_character : std::false_type {};
+
+template<> struct is_character<char> : std::true_type {};
+template<> struct is_character<signed char> : std::true_type {};
+template<> struct is_character<unsigned char> : std::true_type {};
+template<> struct is_character<wchar_t> : std::true_type {};
+template<> struct is_character<char16_t> : std::true_type {};
+template<> struct is_character<char32_t> : std::true_type {};
+template<> struct is_character<const char> : std::true_type {};
+template<> struct is_character<const signed char> : std::true_type {};
+template<> struct is_character<const unsigned char> : std::true_type {};
+template<> struct is_character<const wchar_t> : std::true_type {};
+template<> struct is_character<const char16_t> : std::true_type {};
+template<> struct is_character<const char32_t> : std::true_type {};
+
+
+/*  [==================[ is_stl_sequence ]===================]*/
+                             
+template<class T, class Enabled = void>
+struct is_stl_sequence : std::false_type {};
+
+template<class T>
+struct is_stl_sequence<
+  T,
+  typename std::enable_if<
+    std::is_same<
+      decltype(std::distance(
+        std::declval<T>().begin(),
+        std::declval<T>().end()
+      )),
+      typename T::difference_type
+   >::value
+ >::type
+> : std::true_type {};
+
+template<class T, class Enabled = void>
+struct is_safe_string : std::false_type {};
+
+template<class T>
+struct is_safe_string<
+  T,
+  typename std::enable_if<
+    is_stl_sequence<T>::value
+    && is_character<typename T::value_type>::value
+  >::type
+> : std::true_type {};
 
 } // types
+
+namespace strings
+{
+/*  [====================[   strings::traits   ]=====================]  */
+
+// Forwards
+
+template<class String, class Enable = void>
+struct can_be_nullptr : std::false_type
+{
+};
+
+template<class String>
+struct can_be_nullptr<
+    String,
+    typename std::enable_if<
+        std::is_same<
+            decltype(std::declval<String>().is_nullptr()),
+            bool
+        >::value
+    >::type
+>
+    : std::true_type
+{
+};
+    
+//! The type for unversal string access (all types of possible strings)
+template<
+    class T, 
+    std::size_t SafetyLimit = ::strings::default_safety_limit, 
+    class Enabled = void
+>
+struct traits;
+
+//! STL-like string specialization
+template<class String, std::size_t SafetyLimit>
+struct traits<
+    String,
+    SafetyLimit,
+    typename std::enable_if<
+           types::is_string<String>::value
+        && !std::is_pointer<String>::value
+        && !std::is_array<String>::value
+    >::type
+>
+{
+    constexpr static std::size_t safety_limit = SafetyLimit;
+
+    // NB no allocator_type
+    using traits_type = typename String::traits_type;
+    using value_type = typename String::value_type;
+    using size_type = typename String::size_type;
+    using difference_type = typename String::difference_type;
+    using reference = typename String::reference;
+    using const_reference = typename String::const_reference;
+    using pointer = typename String::pointer;
+    using const_pointer = typename String::const_pointer;
+    using iterator = typename String::iterator;
+    using const_iterator = typename String::const_iterator;
+    using reverse_iterator = typename String::reverse_iterator;
+    using const_reverse_iterator = typename String::const_reverse_iterator;
+
+    constexpr static bool has_o1_size = arrays::has_o1_size<String>::value;
+
+    static_assert(
+        SafetyLimit <= 
+            (std::size_t) std::numeric_limits<difference_type>::max(),
+        "strings::traits: SafetyLimit value is too hight"
+    );
+
+    static size_type size(const String& s) 
+    {
+        const size_type res = s.size();
+        assert(res <= safety_limit);
+        return res;
+    }
+
+    //! Represents as a string with STL-like interface
+    constexpr static String& generic(String& s)
+    {
+        return s;
+    }
+
+    constexpr static const String& generic(const String& s)
+    {
+        return s;
+    }
+
+    //! Some strings implementation holds pointer.
+    //! If the pointer is nullptr the string considered empty()
+    //! and is equal to any non-nullptr empty string.
+    //! But on copying we must preserve nullptr behaviour
+    //! for legacy code.
+    template<
+        class String2,
+        typename std::enable_if<
+               std::is_same<String, String2>::value
+            && can_be_nullptr<String2>::value,
+            bool
+        >::type = false
+        // enable only for types which can hold nullptr
+        // (they must provide is_nullptr())
+    >
+    static bool is_nullptr(const String2& s)
+    {
+        return s.is_nullptr();
+    }
+
+    template<
+        class String2,
+        typename std::enable_if<
+               std::is_same<String, String2>::value
+            && !can_be_nullptr<String2>::value,
+            bool
+        >::type = false
+        // enable only for types which can NOT hold nullptr
+    >
+    constexpr static bool is_nullptr(const String2&)
+    {
+        return false;
+    }
+};
+
+//! CharT[M] string specialization
+template<class CharT, std::size_t M, std::size_t SL>
+struct traits<
+    CharT[M],
+    SL,
+    typename std::enable_if<types::is_character<CharT>::value>::type
+>
+{
+    constexpr static std::size_t safety_limit = SL;
+    static_assert(M-1 < SL, "safety limit");
+
+    // NB no allocator_type
+    using value_type = typename std::remove_const<CharT>::type;
+    using traits_type = std::char_traits<value_type>;
+    using size_type = std::size_t;
+    using difference_type = std::ptrdiff_t;
+    using reference = value_type&;
+    using const_reference = const value_type&;
+    using pointer = value_type*;
+    using const_pointer = const value_type*;
+    using iterator = pointer;
+    using const_iterator = const_pointer;
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
+    size_type size(const value_type*) const
+    {
+        return std::min(M, (std::size_t) 0);
+    }
+
+    constexpr static bool is_nullptr(const value_type*)
+    {
+        return false;
+    }
+
+    //! Represents as a string with STL-like interface
+    template<
+        class C,
+        typename 
+            std::enable_if<!std::is_const<C>::value, bool>::type = false
+    >
+    static basic_char_array<M, C, traits_type>& generic(C (&s)[M])
+    {
+        return adapter(s);
+    }
+
+    template<
+        class C,
+        typename 
+            std::enable_if<std::is_const<C>::value, bool>::type = false
+    >
+    static auto generic(C (&s)[M]) -> decltype(adapter(s))
+    {
+        return adapter(s);
+    }
+};
+
+//! CharT* string specialization
+template<class CharT, std::size_t SafetyLimit>
+struct traits<
+    CharT*,
+    SafetyLimit,
+    typename std::enable_if<types::is_character<CharT>::value>::type
+>
+{
+    constexpr static std::size_t safety_limit = SafetyLimit;
+
+    // NB no allocator_type
+    using value_type = typename std::remove_const<CharT>::type;
+    using traits_type = std::char_traits<value_type>;
+    using size_type = std::size_t;
+    using difference_type = std::ptrdiff_t;
+    using reference = value_type&;
+    using const_reference = const value_type&;
+    using pointer = value_type*;
+    using const_pointer = const value_type*;
+    using iterator = pointer;
+    using const_iterator = const_pointer;
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
+    static_assert(
+        SafetyLimit <= 
+            (std::size_t) std::numeric_limits<difference_type>::max(),
+        "strings::traits: SafetyLimit value is too hight"
+    );
+
+    size_type size(const value_type* s) const
+    {
+        const size_type res = safe_strlen(s, safety_limit);
+        assert(res <= safety_limit);
+        return res;
+    }
+
+    static bool is_nullptr(const CharT* ptr)
+    {
+        return ptr == nullptr;
+    }
+
+    //! Represents as a string with STL-like interface
+    template<
+        class C,
+        typename 
+            std::enable_if<!std::is_const<C>::value, bool>::type = false
+    >
+    static basic_char_ptr<C, SafetyLimit>& generic(C* s)
+    {
+        return ptr_adapter(s);
+    }
+
+    template<
+        class C,
+        typename 
+            std::enable_if<std::is_const<C>::value, bool>::type = false
+    >
+    static basic_const_char_ptr<C, SafetyLimit>& generic(C* s)
+    {
+        return ptr_adapter(s);
+    }
+};
+
+//! Strings are compatible when they use the same traits type.
+template<class String1, class String2, class Enable = void>
+struct is_compatible : std::false_type {};
+
+template<class String1, class String2>
+struct is_compatible<
+    String1,
+    String2,
+    typename std::enable_if<
+        std::is_same<
+            typename traits<String1>::traits_type,
+            typename traits<String2>::traits_type
+        >::value
+    >::type
+> : std::true_type
+{
+};
+
+} // namespace strings
 
 #endif
 
