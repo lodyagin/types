@@ -1,3 +1,4 @@
+#include <type_traits>
 #include "enum.h"
 #include "gtest/gtest.h"
 
@@ -17,6 +18,16 @@ using colours = enumerate<
   int8_t, 
   red, orange, yellow, green, blue, indigo, violet
 >;
+
+using icolours = convertible_enumerate<
+  int8_t, 
+  red, orange, yellow, green, blue, indigo, violet
+>;
+
+static_assert(
+   std::is_base_of<colours, icolours>::value,
+   "wrong enumerate classes definition"
+);
 
 } // namespace rainbow
 
@@ -39,8 +50,35 @@ TEST(Enum, rainbow)
   {
       std::ostringstream ss;
       ss << noenumalpha << colour << enumalpha << colour;
+      EXPECT_EQ("yellowyellow", ss.str());
+  }
+  EXPECT_EQ(colours(violet()), colours::parse(std::string("violet")));
+  EXPECT_EQ(colours(), colours::parse(std::string("VIOLET")));
+}
+
+TEST(Enum, irainbow)
+{
+  using namespace rainbow;
+
+  icolours colour;
+  EXPECT_EQ(7U, icolours::size());
+  EXPECT_EQ("orange", icolours::name(orange()));
+  colour = yellow();
+  EXPECT_EQ(yellow(), colour);
+  EXPECT_EQ(icolours(yellow()), colour);
+  {
+      std::ostringstream ss;
+      ss << icolours(indigo());
+      EXPECT_EQ("indigo", ss.str());
+  }
+
+  {
+      std::ostringstream ss;
+      ss << noenumalpha << colour << enumalpha << colour;
       EXPECT_EQ("2yellow", ss.str());
   }
+  EXPECT_EQ(6, (int8_t) icolours::parse(std::string("violet")));
+  EXPECT_EQ(icolours(), icolours::parse(std::string("VIOLET")));
 }
 
 namespace ext_rainbow {

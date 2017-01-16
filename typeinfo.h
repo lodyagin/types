@@ -1,4 +1,3 @@
-// -*-coding: mule-utf-8-unix; fill-column: 58; -*-
 /**
  * @file
  * Type information routines.
@@ -49,12 +48,12 @@
 #ifndef _WIN32
 #include <cxxabi.h>
 #endif
-#include "types/string.h"
 
 namespace types {
 
 //! Returns a demangled Type name
-inline std::string demangled_name(
+template<class String>
+inline String demangled_name(
   const std::type_index& idx
 )
 {
@@ -71,19 +70,20 @@ inline std::string demangled_name(
     }
     else {
       assert(name == nullptr);
-      return std::string(mangled);
+      return (String) mangled;
     }
 #else
-    return typeid(Type).name();
+    return (String) typeid(Type).name();
 #endif
 }
 
 //! Returns a demangled Type name
-inline std::string demangled_name(
+template<class String>
+inline String demangled_name(
   const std::type_info& info
 )
 {
-  return demangled_name(std::type_index(info));
+  return demangled_name<String>(std::type_index(info));
 }
 
 template<class String>
@@ -103,10 +103,10 @@ struct type_of
   }
 
   //! Returns a demangled Type name
-  template<class String = std::string>
+  template<class String>
   static String name()
   {
-    return (String) ::types::demangled_name(typeid(T));
+      return ::types::demangled_name<String>(typeid(T));
   }
 
   //! For use in context where no dynamic memory
