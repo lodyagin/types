@@ -212,14 +212,14 @@ public:
 template<int idx, class CharT, std::int16_t N, class Traits>
 struct len_t<
   idx, 
-  const basic_auto_string<CharT, N, Traits>&
+  const strings::basic_auto_string<CharT, N, Traits>&
 >
 {
   static constexpr std::size_t max_length = (std::size_t) N;
 };
 
 template<int idx, class CharT, std::int16_t N, class Traits>
-struct len_t<idx, basic_auto_string<CharT, N, Traits>&&>
+struct len_t<idx, strings::basic_auto_string<CharT, N, Traits>&&>
 {
   static constexpr std::size_t max_length = (std::size_t) N;
 };
@@ -234,10 +234,10 @@ template<
 class stringifier_t<
   OutIt,
   idx,
-  const basic_auto_string<CharT, N, Traits>&
+  const strings::basic_auto_string<CharT, N, Traits>&
 >
 {
-  using string = basic_auto_string<CharT, N, Traits>;
+  using string = strings::basic_auto_string<CharT, N, Traits>;
 
   const string val;
 public:
@@ -270,10 +270,10 @@ template<
 class stringifier_t<
   OutIt,
   idx,
-  basic_auto_string<CharT, N, Traits>&&
+  strings::basic_auto_string<CharT, N, Traits>&&
 >
 {
-  using string = basic_auto_string<CharT, N, Traits>;
+  using string = strings::basic_auto_string<CharT, N, Traits>;
 
   const string val;
 public:

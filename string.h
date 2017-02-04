@@ -46,32 +46,20 @@
 
 //#include <iostream>
 //#include <streambuf>
-#include <string>
+//#include <string>
 #include <array>
 #include <cstdint>
 #include <limits>
 //#include <bits/silent_assert.h>
 //#include <bits/iterator.h>
-#include "pair.h"
+#include "types/traits.h"
+#include "types/pair.h"
 
 #ifndef BARE_CXX
 #define _silent_assert assert
 #endif
 
 namespace types {
-
-// TODO move to some right place
-template<class T>
-constexpr const T& min(const T& a, const T& b)
-{
-  return (b < a) ? b : a;
-}
-
-template<class T>
-constexpr const T& max(const T& a, const T& b)
-{
-  return (b > a) ? b : a;
-}
 
 namespace iterators_ {
 
@@ -145,7 +133,7 @@ public:
 
   safe_string& operator++() noexcept
   {
-    if (__builtin_expect(idx++ >= n, 0))
+    if (__builtin_expect(++idx >= n, 0))
     {
       idx = 0;
       ovf += n;
@@ -225,9 +213,9 @@ template<
 >
 struct basic_auto_string_traits
 {
-  using iterator = iterators_::safe_string
+  using iterator = types::iterators_::safe_string
     <CharT, CharT*, CharT&>;
-  using const_iterator = iterators_::safe_string
+  using const_iterator = types::iterators_::safe_string
     <CharT, const CharT*, const CharT&>;
 };
 
@@ -245,7 +233,7 @@ using auto_wstring_traits =
 template <
   class CharT,
   std::int16_t N,
-  class Traits = std::char_traits<CharT>
+  class Traits
 > 
 class basic_auto_string 
 {
@@ -267,11 +255,17 @@ public:
   using value_type = CharT;
   using size_type = std::uint16_t;
   using difference_type = std::int16_t;
+  using reference = value_type&;
+  using const_reference = const value_type&;
+  using pointer = value_type*;
+  using const_pointer = const value_type*;
   using iterator = typename 
     basic_auto_string_traits<CharT, Traits>::iterator;
   using const_iterator = typename 
    basic_auto_string_traits<CharT, Traits>
      ::const_iterator;
+  using reverse_iterator = std::reverse_iterator<iterator>;
+  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
   basic_auto_string() noexcept : cur_end(begin()) 
   {
@@ -293,9 +287,10 @@ public:
          ++i, ++src, ++cur_end
          )
       *cur_end = *src;
-
+/*
     if (i < N)
       *++cur_end = 0;
+*/
   }
 
   template<class Iterator>
@@ -311,9 +306,10 @@ public:
          ++i, ++src, ++cur_end
          )
       *cur_end = *src;
-
+/*
     if (i < N)
       *++cur_end = 0;
+*/
   }
 
   basic_auto_string(
@@ -336,18 +332,25 @@ public:
 
   size_type size() const 
   {
-    return end() - begin();
+    static_assert(N > 0, "N must be > 0");
+    static_assert(sizeof(difference_type) >= sizeof(N), "difference_type is too small");
+    return std::min(end() - begin(), static_cast<difference_type>(N-1));
+  }
+
+  bool overflow() const
+  {
+    return end() - begin() > N - 1;
   }
 
   iterator begin() noexcept
   {
-    return iterator(m.data(), N-1, iterators_::begin_t());
+    return iterator(m.data(), N-1, types::iterators_::begin_t());
   }
 
   const_iterator begin() const noexcept
   {
     return const_iterator(
-      m.data(), N-1, iterators_::begin_t()
+      m.data(), N-1, types::iterators_::begin_t()
     );
   }
 
@@ -364,14 +367,20 @@ public:
   //! Returns the end of buffer, not only filled size
   iterator buf_end() noexcept 
   {
-    return iterator(m.data(), N-1, iterators_::end_t());
+    return iterator(m.data(), N-1, types::iterators_::end_t());
   }
 
   const_iterator buf_end() const noexcept
   {
     return const_iterator(
-      m.data(), N-1, iterators_::end_t()
+      m.data(), N-1, types::iterators_::end_t()
     );
+  }
+
+  void clear() noexcept
+  {
+//    m[0] = 0;
+    cur_end = begin();
   }
 
   value_type* data()
@@ -383,8 +392,9 @@ public:
 
   const value_type* data() const
   {
-    _silent_assert(m[N-1] == 0);
-    m[N-1] = 0; // for sure
+    const auto n = size();
+    _silent_assert(n < N);
+    m[n] = 0;
     return m.data();
 
     // _silent_assert(*end() == 0);
@@ -395,8 +405,6 @@ public:
 
   const value_type* c_str() const
   {
-    _silent_assert(m[N-1] == 0);
-    m[N-1] = 0; // for sure
     return data();
   }
 
@@ -583,7 +591,7 @@ using auto_wstringbuf = basic_auto_stringbuf<wchar_t, N>;
  */
 template <
   class CharT,
-  class Traits = std::char_traits<CharT>
+  class Traits
 > 
 class basic_constexpr_string 
 {
@@ -591,6 +599,15 @@ public:
   typedef std::uint32_t size_type;
   typedef CharT value_type;
   typedef Traits traits_type;
+  typedef std::int32_t difference_type;
+  typedef value_type& reference;
+  typedef const value_type& const_reference;
+  typedef value_type* pointer;
+  typedef const value_type* const_pointer;
+  typedef types::iterators_::safe_string<CharT, CharT*, CharT&> iterator;
+  typedef types::iterators_::safe_string<CharT, const CharT*, const CharT&> const_iterator;
+  typedef std::reverse_iterator<iterator> reverse_iterator;
+  typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
   template<std::uint32_t N>
   constexpr basic_constexpr_string(const char(&str)[N])
@@ -638,6 +655,7 @@ public:
     );
   }
 
+  // TODO generic comparison
   bool is_identical(basic_constexpr_string o) const
     noexcept
   {
@@ -700,12 +718,15 @@ public:
   }
 
 private:
-  /*const*/ size_type len;
-  const value_type* /*const*/ arr;
+  size_type len;
+  const_pointer arr;
 };
 
 typedef basic_constexpr_string<char> constexpr_string;
 typedef basic_constexpr_string<wchar_t> constexpr_wstring;
+
+static_assert(types::is_string<constexpr_string>::value, "is_string is failed for constexpr_string");
+static_assert(types::is_string<constexpr_wstring>::value, "is_string is failed for constexpr_wstring");
 
 #if 0
 template<class CharT, class Traits>
@@ -832,6 +853,7 @@ public:
 
 /*  [========[   basic_const_char_array - element access   ]=========]  */
 
+#if 0 // wait out_of_range
     //! Returns a reference to the character at specified location
     //! pos. Bounds checking is performed, exception of type
     //! std::out_of_range will be thrown on invalid access.
@@ -843,6 +865,7 @@ public:
         }
         return operator[](n);
     }
+#endif
 
     constexpr const_reference operator[](size_type n) const
     {
@@ -853,7 +876,7 @@ public:
     //! behavior is undefined if empty() == true.
     const_reference front() const
     {
-        assert(!empty());
+        _silent_assert(!empty());
         return bs[0];
     }
 
@@ -861,7 +884,7 @@ public:
     //! behavior is undefined if empty() == true.
     const_reference back() const
     {
-        assert(!empty());
+        _silent_assert(!empty());
         return bs[size()-1];
     }
 
@@ -987,6 +1010,7 @@ public:
 
 /*  [==========[   basic_const_char_array - comparison   ]===========]  */
 
+#if 0 // waits enumerate
     //! Lexicographically compares this string to str. Uses traits_type.
     template<
         class Result = int,
@@ -998,7 +1022,7 @@ public:
     >
     Result compare(const String& str) const noexcept
     {
-        using namespace comparison;
+        using namespace ::comparison;
 
         return sequence::compare<Result>(
             *this, 
@@ -1044,9 +1068,11 @@ public:
     {
         return b != a;
     }
+#endif
 
 /*  [============[   basic_const_char_array - search   ]=============]  */
 
+#if 0 // waits std::search
     //! Finds the first substring equal to the given character
     //! sequence. Search begins at pos, i.e. the found substring must
     //! not begin in a position preceding pos.
@@ -1081,11 +1107,12 @@ public:
             return it - begin();
         }
     }
+#endif
 
     //! For testing purposes.
     bool __invariants() const
     {
-        return this != NULL 
+        return this != nullptr
             && size() <= max_size()
             && (MaxSize == 0 || bs[MaxSize-1] == 0)
             && std::distance(begin(), end()) == size();
@@ -1117,6 +1144,95 @@ template<
 constexpr std::size_t 
 basic_const_char_array<MaxSize, CharT, Traits, Base, O1Size>::npos;
 
+/* ----- char[] (basic_char_array) adapter ----- */
+
+template<
+    class CharT,
+    class Traits, //= std::char_traits<CharT>,
+    std::size_t BuffSize,
+    typename std::enable_if<!std::is_const<CharT>::value, bool>::type
+    //= false
+    >
+basic_char_array<
+    BuffSize, 
+    CharT, 
+    Traits, 
+    zero_termination_::static_size::force<BuffSize, CharT>
+>& 
+//
+adapter(CharT (&str)[BuffSize])
+{
+    typedef basic_char_array<
+        BuffSize, 
+        CharT, 
+        Traits, 
+        zero_termination_::static_size::force<BuffSize, CharT>
+    > ret_string_t;
+
+    assert(str);
+    ret_string_t* p = reinterpret_cast<ret_string_t*>(str);
+    p->do_zero_termination();
+    return *p;
+}
+
+/* ----- const char[] (basic_const_char_array) adapter ----- */
+
+template<
+    class CharT,
+    class Traits,
+        // = std::char_traits<typename std::remove_const<CharT>::type>,
+    std::size_t BuffSize,
+    typename std::enable_if<std::is_const<CharT>::value, bool>::type
+        //= false
+    >
+const basic_const_char_array<
+    BuffSize, 
+    typename std::remove_const<CharT>::type, 
+    Traits, 
+    zero_termination_::static_size::check<
+        BuffSize, 
+        typename std::remove_const<CharT>::type
+    >,
+    false // NB
+>& 
+//
+adapter(CharT (&str)[BuffSize])
+{
+    typedef basic_const_char_array<
+        BuffSize, 
+        typename std::remove_const<CharT>::type, 
+        Traits, 
+        zero_termination_::static_size::check<
+            BuffSize, 
+            typename std::remove_const<CharT>::type
+        >,
+        false
+    > ret_string_t;
+
+    _silent_assert(str);
+    const ret_string_t* p = reinterpret_cast<const ret_string_t*>(str);
+    p->do_zero_termination();
+    //assert(BuffSize == 0 || BuffSize-1 == Traits::length(str));
+    //static_assert(arrays::has_o1_size<ret_string_t>::value, "error");
+    return *p;
+}
+
+//! The length of the string constant is defined in compilation time
+template<
+    class CharT,
+    class Traits=std::char_traits<CharT>,
+    std::size_t N,
+    typename std::enable_if<!std::is_const<CharT>::value, bool>::type
+        = false
+>
+const basic_constexpr_string<CharT, Traits>
+fast_constant(CharT (&str)[N])
+{
+    typedef basic_constexpr_string<CharT, Traits> ret_string_t;
+    static_assert(arrays::has_o1_size<ret_string_t>::value, "error");
+    return ret_string_t(str);
+}
+  
 //! The length of the string constant is defined in compilation time
 template<
     class CharT,
@@ -1149,15 +1265,16 @@ fast_constant(CharT (&str)[MaxSize])
         true
     > ret_string_t;
 
-    //assert(str);
+    //_silent_assert(str);
     const ret_string_t* p = reinterpret_cast<const ret_string_t*>(str);
     //p->do_zero_termination();
-    assert(MaxSize > 0);
-    assert(MaxSize-1 == Traits::length(str));
+    _silent_assert(MaxSize > 0);
+    _silent_assert(MaxSize-1 == Traits::length(str));
     static_assert(arrays::has_o1_size<ret_string_t>::value, "error");
     return *p;
 }
-  
+
 } // namespace strings
 
 #endif
+
