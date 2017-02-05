@@ -1119,7 +1119,7 @@ public:
     }
 
 protected:
-    CharT bs[];
+    CharT bs[0];
 
     basic_const_char_array() noexcept
     {
@@ -1209,7 +1209,7 @@ adapter(CharT (&str)[BuffSize])
         false
     > ret_string_t;
 
-    _silent_assert(str);
+    //_silent_assert(str);
     const ret_string_t* p = reinterpret_cast<const ret_string_t*>(str);
     p->do_zero_termination();
     //assert(BuffSize == 0 || BuffSize-1 == Traits::length(str));
