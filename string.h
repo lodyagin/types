@@ -415,7 +415,14 @@ public:
 
   void push_back(value_type ch) noexcept
   {
-    *cur_end++ = ch;
+    if (__builtin_expect(size() < max_size(), 1))
+    {
+      *cur_end++ = ch;
+    }
+/* TODO
+    else 
+      throw length_error;
+*/
   }
 
 protected:
