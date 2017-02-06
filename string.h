@@ -337,9 +337,14 @@ public:
     return std::min(end() - begin(), static_cast<difference_type>(N-1));
   }
 
+  size_type max_size() const
+  {
+    return buf_size() - 1;
+  }
+
   bool overflow() const
   {
-    return end() - begin() > N - 1;
+    return end() - begin() > max_size();
   }
 
   iterator begin() noexcept
