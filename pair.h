@@ -29,7 +29,7 @@ struct __integer_sequence {
   using __to_tuple_indices = __tuple_indices<(_Values + _Sp)...>;
 };
 
-#if !__has_builtin(__make_integer_seq) || defined(_LIBCPP_TESTING_FALLBACK_MAKE_INTEGER_SEQUENCE)
+//#if !__has_builtin(__make_integer_seq) || defined(_LIBCPP_TESTING_FALLBACK_MAKE_INTEGER_SEQUENCE)
 namespace __detail {
 
 template<typename _Tp, std::size_t ..._Extra> struct __repeat;
@@ -69,19 +69,21 @@ template<> struct __parity<7> { template<std::size_t _Np> struct __pmake : __rep
 
 } // namespace detail
 
-#endif  // !__has_builtin(__make_integer_seq) || defined(_LIBCPP_TESTING_FALLBACK_MAKE_INTEGER_SEQUENCE)
+//#endif  // !__has_builtin(__make_integer_seq) || defined(_LIBCPP_TESTING_FALLBACK_MAKE_INTEGER_SEQUENCE)
 
-#if __has_builtin(__make_integer_seq)
+/*#if __has_builtin(__make_integer_seq)
 template <std::size_t _Ep, std::size_t _Sp>
 using __make_indices_imp =
     typename __make_integer_seq<__integer_sequence, std::size_t, _Ep - _Sp>::template
     __to_tuple_indices<_Sp>;
 #else
+*/
 template <std::size_t _Ep, std::size_t _Sp>
 using __make_indices_imp =
     typename __detail::__make<_Ep - _Sp>::type::template __to_tuple_indices<_Sp>;
 
-#endif
+//#endif
+
 
 template <std::size_t _Ep, std::size_t _Sp = 0>
 struct __make_tuple_indices

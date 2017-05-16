@@ -48,7 +48,9 @@
 #include <limits>
 //#include <stdexcept>
 #include <string>
-//#include <unordered_map>
+#ifndef BARE_CXX
+#  include <unordered_map>
+#endif
 #include <utility>
 //#include <vector>
 #include "types/typeinfo.h"

@@ -52,7 +52,12 @@
 #include <type_traits>
 #include <utility>
 //#include "enum.h"
-#include <bits/silent_assert.h>
+#ifdef BARE_CXX
+#  include <bits/silent_assert.h>
+#else
+#  include <cassert>
+#  define _silent_assert assert
+#endif
 #include <types/pair.h>
 
 /* Logic extensions */
