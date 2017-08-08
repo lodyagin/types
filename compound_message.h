@@ -296,6 +296,148 @@ public:
   }
 };
 
+// for basic_constexpr_string
+template<int idx, class CharT, std::size_t MaxLen, class Traits>
+struct len_t<
+  idx, 
+  const strings::basic_constexpr_string<CharT, Traits, MaxLen>
+>
+{
+  static constexpr std::size_t max_length = MaxLen;
+};
+
+template<int idx, class CharT, std::size_t MaxLen, class Traits>
+struct len_t<
+  idx, 
+  strings::basic_constexpr_string<CharT, Traits, MaxLen>&
+>
+{
+  static constexpr std::size_t max_length = MaxLen;
+};
+
+template<int idx, class CharT, std::size_t MaxLen, class Traits>
+struct len_t<
+  idx, 
+  const strings::basic_constexpr_string<CharT, Traits, MaxLen>&
+>
+{
+  static constexpr std::size_t max_length = MaxLen;
+};
+
+template<int idx, class CharT, std::size_t MaxLen, class Traits>
+struct len_t<idx, strings::basic_constexpr_string<CharT, Traits, MaxLen>&&>
+{
+  static constexpr std::size_t max_length = MaxLen;
+};
+
+template<
+  class OutIt, 
+  int idx,
+  class CharT, 
+  std::size_t MaxLen, 
+  class Traits
+>
+class stringifier_t<
+  OutIt,
+  idx,
+  const strings::basic_constexpr_string<CharT, Traits, MaxLen>&
+>
+{
+  using string = strings::basic_constexpr_string<CharT, Traits, MaxLen>;
+
+  const string val;
+public:
+  using char_type = typename OutIt::char_type;
+
+  stringifier_t(string v) noexcept : val(v) {}
+
+  void stringify(OutIt out, std::ios_base&) const noexcept
+  {
+#if 0
+    try {
+      std::copy(val.begin(), val.end(), out);
+    }
+    catch(...) {
+      *out++ = '?';
+    }
+#else
+  std::copy(val.begin(), val.end(), out);
+#endif
+  }
+};
+
+template<
+  class OutIt, 
+  int idx,
+  class CharT, 
+  std::size_t MaxLen, 
+  class Traits
+>
+class stringifier_t<
+  OutIt,
+  idx,
+  strings::basic_constexpr_string<CharT, Traits, MaxLen>&
+>
+{
+  using string = strings::basic_constexpr_string<CharT, Traits, MaxLen>;
+
+  const string val;
+public:
+  using char_type = typename OutIt::char_type;
+
+  stringifier_t(string v) noexcept : val(v) {}
+
+  void stringify(OutIt out, std::ios_base&) const noexcept
+  {
+#if 0
+    try {
+      std::copy(val.begin(), val.end(), out);
+    }
+    catch(...) {
+      *out++ = '?';
+    }
+#else
+  std::copy(val.begin(), val.end(), out);
+#endif
+  }
+};
+
+template<
+  class OutIt, 
+  int idx,
+  class CharT, 
+  std::size_t MaxLen, 
+  class Traits
+>
+class stringifier_t<
+  OutIt,
+  idx,
+  strings::basic_constexpr_string<CharT, Traits, MaxLen>&&
+>
+{
+  using string = strings::basic_constexpr_string<CharT, Traits, MaxLen>;
+
+  const string val;
+public:
+  using char_type = typename OutIt::char_type;
+
+  stringifier_t(string v) noexcept : val(v) {}
+
+  void stringify(OutIt out, std::ios_base&) const noexcept
+  {
+#if 0
+    try {
+      std::copy(val.begin(), val.end(), out);
+    }
+    catch(...) {
+      *out++ = '?';
+    }
+#else
+  std::copy(val.begin(), val.end(), out);
+#endif
+  }
+};
+
 #define COHORS_TYPES_COMPOUND_MESSAGE_SIGNED_INT(Int)   \
 template<int idx>                                       \
 struct len_t<idx, Int>                                  \

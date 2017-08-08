@@ -250,7 +250,8 @@ adapter(CharT (&str)[MaxSize]);
 
 template <
   class CharT,
-  class Traits = std::char_traits<CharT>
+  class Traits = std::char_traits<CharT>,
+  std::size_t MaxLen = std::numeric_limits<std::size_t>::max()
 > 
 class basic_constexpr_string;
 
@@ -772,8 +773,8 @@ struct is_string<std::basic_string<CharT, Traits, Allocator>>
 };
 #endif
 
-template<class CharT, class Traits>
-struct is_string<strings::basic_constexpr_string<CharT, Traits>>
+template<class CharT, class Traits, std::size_t MaxLen>
+struct is_string<strings::basic_constexpr_string<CharT, Traits, MaxLen>>
     : std::true_type
 {
 };
@@ -934,14 +935,15 @@ struct has_o1_size<
 
 template <
   class CharT,
-  class Traits
+  class Traits,
+  std::size_t MaxLen
 > 
 struct has_o1_size<
-    strings::basic_constexpr_string<CharT, Traits>
+    strings::basic_constexpr_string<CharT, Traits, MaxLen>
 >
     : std::true_type
 {
-  typedef strings::basic_constexpr_string<CharT, Traits> array_type;
+  typedef strings::basic_constexpr_string<CharT, Traits, MaxLen> array_type;
   typedef typename array_type::size_type size_type;
   
   static size_type size(const array_type& a)

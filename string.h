@@ -603,7 +603,8 @@ using auto_wstringbuf = basic_auto_stringbuf<wchar_t, N>;
  */
 template <
   class CharT,
-  class Traits
+  class Traits,
+  std::size_t MaxLen
 > 
 class basic_constexpr_string 
 {
@@ -626,6 +627,7 @@ public:
     noexcept
     : len(N-1), arr(str)
   {
+    static_assert(N <= MaxLen, "basic_constexpr_string MaxLen overflow");
   }
 
   constexpr basic_constexpr_string() noexcept
@@ -734,8 +736,14 @@ private:
   const_pointer arr;
 };
 
-typedef basic_constexpr_string<char> constexpr_string;
-typedef basic_constexpr_string<wchar_t> constexpr_wstring;
+using constexpr_string = basic_constexpr_string<char>;
+using constexpr_wstring = basic_constexpr_string<wchar_t>;
+
+template<std::size_t MaxLen>
+using lim_constexpr_string = basic_constexpr_string<char, std::char_traits<char>, MaxLen>;
+
+template<std::size_t MaxLen>
+using lim_constexpr_wstring = basic_constexpr_string<wchar_t, std::char_traits<wchar_t>, MaxLen>;
 
 static_assert(types::is_string<constexpr_string>::value, "is_string is failed for constexpr_string");
 static_assert(types::is_string<constexpr_wstring>::value, "is_string is failed for constexpr_wstring");
