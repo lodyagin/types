@@ -49,7 +49,7 @@
 
 #include <locale>
 #include "types/string.h"
-//#include "types/typeinfo.h"
+#include "types/traits.h"
 
 namespace types {
 

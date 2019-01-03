@@ -256,11 +256,19 @@ public:
   }
 */
 
+#if 0
   template<class String>
   static enumerate parse(const String& s)
   {
     return enumerate(base::template lookup<bottom_idx>(s));
   }
+#else
+  template<class String>
+  void parse(const String& s)
+  {
+    idx = base::template lookup<bottom_idx>(s);
+  }
+#endif
 
 /*
   static constexpr std::size_t size()

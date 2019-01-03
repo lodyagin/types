@@ -244,15 +244,19 @@ template<template<class...> class Parent, class... Ts>
 class aggregate<Parent, end_of_templates, Ts...>
 #endif
 
-//! Iteration over std::touple
+//! Iteration over std::tuple
 template<
-  //template<class> class UnaryFunction, 
+  template<class> class UnaryFunction, 
   std::size_t I = 0, 
   class... T
 >
 //typename std::enable_if<I == sizeof...(T)>::type
 void for_each(const std::tuple<T...>& t)
 {
+  UnaryFunction
+    <typename std::tuple_element<I, decltype(t)>::type>
+      (std::get<I>(t));
+  for_each<UnaryFunction, I + 1, T...>(t);
 }
 
 #if 0
@@ -335,7 +339,6 @@ struct is_subset<
 >
 {
 };
-
 
 } // types
 

@@ -1,5 +1,5 @@
 #include <type_traits>
-#include "types/enum.h"
+#include "enum.h"
 #include "gtest/gtest.h"
 
 using namespace types;

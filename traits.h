@@ -197,7 +197,7 @@ struct select_descendants<
         descendants;
 };
 
-} // helper_
+} // namespace helper_
 
 template<class B, class D0, class... Ds>
 struct is_base_of_some 
@@ -400,7 +400,7 @@ struct nonatomic<std::pair<U1, U2>>
 };
 #endif
 
-} // types
+} // namespace types
 
 #endif
 

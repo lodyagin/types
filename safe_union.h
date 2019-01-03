@@ -570,7 +570,8 @@ public:
         // try to cast to some descendant of T. 
         // (T is also a descendant of T here)
         if (union_::cases::cast1<
-                typename traits::select_descendants<T, Ts...>::descendants
+                typename types::select_descendants<T, Ts...>
+                  ::descendants
             > :: do_switch(the_type, u, result))
         {
             return result;
