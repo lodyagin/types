@@ -75,6 +75,39 @@ bool do_switch(
         || do_switch(key, std::forward<Pars>(pars), cases...);
 }
 
+template<
+  template<class> class CaseT,
+  class Selector, 
+  class Pars, 
+  class... CasePars
+>
+bool do_switch_templ_cases_(const Selector& key, Pars&& pars)
+{
+  return do_switch(
+    key, 
+    std::forward<Pars>(pars), 
+    CaseT<CasePars>()...
+  );
+}
+
+template<
+  template<class> class CaseT,
+  class Selector, 
+  class Pars, 
+  class... CasePars
+>
+bool do_switch_tuple(
+    const Selector& key, 
+    Pars&& pars, 
+    const std::tuple<CasePars...>&
+)
+{
+  return do_switch_templ_cases_<CaseT, Selector, Pars, CasePars...>(
+    key, 
+    std::forward<Pars>(pars)
+  );
+}
+
 template<class Selector, class Case, class Fun, class... Pars>
 bool switch_case(
     const Selector& key, 

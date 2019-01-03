@@ -248,32 +248,34 @@ class aggregate<Parent, end_of_templates, Ts...>
 template<
   template<class> class UnaryFunction, 
   std::size_t I = 0, 
-  class... T
+  class... T,
+  class... P
 >
-//typename std::enable_if<I == sizeof...(T)>::type
-void for_each(const std::tuple<T...>& t)
+bool for_each(const std::tuple<T...>& t, P&&... pars)
 {
-  UnaryFunction
+  return UnaryFunction
     <typename std::tuple_element<I, decltype(t)>::type>
-      (std::get<I>(t));
-  for_each<UnaryFunction, I + 1, T...>(t);
+      (std::forward<P>(pars)...) // constructor parameters
+      (std::get<I>(t))
+    && for_each<UnaryFunction, I + 1, T..., P...>(t);
 }
 
-#if 0
 template<
   template<class> class UnaryFunction, 
+  template<class> class... PT,
   std::size_t I = 0, 
-  class... T
+  class... T,
+  class... P
 >
-typename std::enable_if<I < sizeof...(T)>::type
-for_each(std::tuple<T...>&& t)
+bool for_eachT(const std::tuple<T...>& t, P&&... pars)
 {
-  UnaryFunction
-    <typename std::tuple_element<I, decltype(t)>::type>
-      (std::get<I>(std::move(t)));
-  for_each<UnaryFunction, I + 1, T...>(std::move(t));
+  using TPar = typename std::tuple_element<I, decltype(t)>::type;
+
+  return UnaryFunction<TPar>
+      (PT<TPar>()..., std::forward<P>(pars)...) // constructor parameters
+      (std::get<I>(t))
+      && for_eachT<UnaryFunction, PT..., I + 1, T..., P...>(t);
 }
-#endif
 
 //! This is type expression to check whether `base' is a
 //! base of `derived'

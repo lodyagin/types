@@ -43,14 +43,16 @@
 
 #include <ios>
 #include <cassert>
-#include <functional>
+//#include <functional>
 #include <iterator>
 #include <limits>
-#include <stdexcept>
+//#include <stdexcept>
 #include <string>
-#include <unordered_map>
+#ifndef BARE_CXX
+#  include <unordered_map>
+#endif
 #include <utility>
-#include <vector>
+//#include <vector>
 #include "types/typeinfo.h"
 
 #ifndef TYPES_ENUM_H

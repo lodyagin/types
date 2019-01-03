@@ -203,7 +203,7 @@ public:
     : format(fmt)
   {}
 
-  const types::basic_constexpr_string<CharT> format;
+  const strings::basic_constexpr_string<CharT> format;
 };
 
 template<class Clock, size_t slen>
@@ -254,7 +254,7 @@ struct put_time_t
 
   put_time_t(
     const time_point& p, 
-    types::constexpr_string f
+    strings::constexpr_string f
   ) 
     : point(p), format(f.c_str()) 
   {}
@@ -289,7 +289,7 @@ template<
 ::times::put_time_t<CharT, Clock, Duration> 
 put_time(
   const std::chrono::time_point<Clock, Duration>& time, 
-  const types::basic_constexpr_string<CharT> format
+  const strings::basic_constexpr_string<CharT> format
 )
 {
   return ::times::put_time_t<CharT, Clock, Duration>

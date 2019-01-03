@@ -86,7 +86,7 @@ public:
   static constexpr uint16_t buf_len = 
     types::min(max_len, emergency_string_limit);
 
-  using stringbuf = auto_stringbuf<buf_len>;
+  using stringbuf = strings::auto_stringbuf<buf_len>;
   using string = typename stringbuf::string;
 
   exception_string() 
