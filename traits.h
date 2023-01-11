@@ -317,22 +317,22 @@ struct is_##xxx<yyy> : std::true_type \
 { \
 };
 
-TYPES_IS_XXX_DECL(char);
-TYPES_IS_XXX_SPEC(char, char);
-TYPES_IS_XXX_SPEC(char, signed char);
-TYPES_IS_XXX_SPEC(char, unsigned char);
+TYPES_IS_XXX_DECL(char)
+TYPES_IS_XXX_SPEC(char, char)
+TYPES_IS_XXX_SPEC(char, signed char)
+TYPES_IS_XXX_SPEC(char, unsigned char)
 
-TYPES_IS_XXX_DECL(short);
-TYPES_IS_XXX_SPEC(short, short);
-TYPES_IS_XXX_SPEC(short, unsigned short);
+TYPES_IS_XXX_DECL(short)
+TYPES_IS_XXX_SPEC(short, short)
+TYPES_IS_XXX_SPEC(short, unsigned short)
 
-TYPES_IS_XXX_DECL(int);
-TYPES_IS_XXX_SPEC(int, int);
-TYPES_IS_XXX_SPEC(int, unsigned int);
+TYPES_IS_XXX_DECL(int)
+TYPES_IS_XXX_SPEC(int, int)
+TYPES_IS_XXX_SPEC(int, unsigned int)
 
-TYPES_IS_XXX_DECL(long);
-TYPES_IS_XXX_SPEC(long, long);
-TYPES_IS_XXX_SPEC(long, unsigned long);
+TYPES_IS_XXX_DECL(long)
+TYPES_IS_XXX_SPEC(long, long)
+TYPES_IS_XXX_SPEC(long, unsigned long)
 
 template<class T>
 struct is_long_long : std::false_type
@@ -650,13 +650,133 @@ struct nonatomic<types::pair<U1, U2>>
 };
 #endif
 
+#define HAS_MEMBER2(name, member)																							\
+template<class T>																												\
+class has_##name																											\
+{																																				\
+private:																																\
+    typedef char YesType[1];																						\
+    typedef char NoType[2];																							\
+    template <typename C> static YesType& test( decltype(&C::member) ) ; \
+    template <typename C> static NoType& test(...);											\
+public:																																	\
+    enum { value = sizeof(test<T>(0)) == sizeof(YesType) };							\
+};
+
+#define HAS_MEMBER(member) HAS_MEMBER2(member, member)
+
+HAS_MEMBER(assign)
+HAS_MEMBER(get_as_string)
+HAS_MEMBER(is_no_value)
+//HAS_MEMBER2(equal, operator==)
+
+/*template<class T, class Enable = void>
+struct has_is_no_value : std::false_type {};
+
+template<class T>
+struct has_is_no_value<
+	T,
+	types::void_t<decltype(std::declval<T>().is_no_value())>
+> : std::true_type {};
+*/
+
+template<class T, class Enable = void>
+struct has_equal : std::false_type {};
+
+template<class T>
+struct has_equal<
+	T,
+	std::void_t<decltype(std::declval<T>() == std::declval<T>())>
+> : std::true_type {};
+
+/*  [=======================[  has_string_view  ]========================]  */
+
+template<class T, class Enable = void>
+struct has_string_view : std::false_type {};
+
+template<class T>
+struct has_string_view<T, decltype(new std::string(std::declval<T>()))> : std::true_type {};
+
+template<class T>
+struct has_string_view<T, std::enable_if_t<std::is_base_of<std::string, T>::value>>
+	: std::true_type {};
+
+template<class T>
+struct has_string_view<T, std::enable_if_t<has_get_as_string<T>::value>>
+	: std::true_type {};
+
+/*  [================[   is_associative_container   ]=================]  */
+
+template<class T, class Enable = void>
+struct is_associative_container : std::false_type {};
+
+template<class T>
+struct is_associative_container<T, std::void_t<typename T::key_type>> : std::true_type {};
+
 /*  [====================[   is_sequence   ]=========================]  */
 
 template<class T, class Enable = void>
-struct is_sequence : std::false_type
+struct has_push_back : std::false_type {};
+
+template<class T>
+struct has_push_back<
+	T,
+	std::void_t<
+		decltype(
+			std::declval<T>().push_back(std::declval<typename T::value_type>())
+		)
+	>
+> : std::true_type {};
+
+template<class T, class Enable = void>
+struct has_equal_range : std::false_type {};
+
+template<class T>
+struct has_equal_range<
+	T,
+	std::void_t<
+		decltype(
+			std::declval<T>().equal_range(std::declval<typename T::key_type>())
+		)
+	>
+> : std::true_type {};
+
+template<class T, class Enable = void>
+struct is_random_access_container
+	: std::false_type {};
+
+template<class T>
+struct is_random_access_container<
+	T,
+	std::void_t<
+		decltype(
+			std::declval<typename T::iterator>()[1]
+		)
+	>
+>
+	: std::integral_constant<bool, !std::is_base_of<std::string, T>::value> {};
+
+template<class T>
+struct is_sequence
+  : std::integral_constant<
+	  bool,
+	(has_push_back<T>::value || is_random_access_container<T>::value || has_equal_range<T>::value)
+	  && !has_string_view<T>::value
+>
+{};
+
+#if 0
+
+template<class String>
+struct is_sequence<
+    String,
+    typename std::enable_if<is_string<String>::value>::type
+>
+  : std::true_type
 {
 };
 
+#endif
 
 /*  [====================[   is_iterator   ]=========================]  */
 
@@ -765,13 +885,26 @@ struct is_string<
 };
 #endif
 
-#if 0 // wait till Allocator
+#if 1 // wait till Allocator
 template<class CharT, class Traits, class Allocator>
 struct is_string<std::basic_string<CharT, Traits, Allocator>>
     : std::true_type
 {
 };
 #endif
+
+template <
+  class CharT,
+  class Traits = std::char_traits<CharT>,
+  CharT...
+> 
+class basic_meta_string;
+
+template<class CharT, class Traits, std::size_t MaxLen>
+struct is_string<types::basic_meta_string<CharT, Traits, MaxLen>>
+    : std::true_type
+{
+};
 
 template<class CharT, class Traits, std::size_t MaxLen>
 struct is_string<strings::basic_constexpr_string<CharT, Traits, MaxLen>>
@@ -817,17 +950,6 @@ struct is_string<
 {
 };
 #endif
-
-/*  [======================[   is_sequence   ]=======================]  */
-
-template<class String>
-struct is_sequence<
-    String,
-    typename std::enable_if<is_string<String>::value>::type
->
-  : std::true_type
-{
-};
 
 /*  [===================[   sequence_size   ]========================]  */
 

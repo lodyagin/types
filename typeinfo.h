@@ -119,6 +119,38 @@ struct type_of
   }
 };
 
+template<class T>
+std::string type_name()
+{
+	return type_of<T>::template name<std::string>();
+}
+
+template<class T>
+std::string type_name(const T& obj)
+{
+	return type_name<T>();
+}
+
+// selects only a type name, discard a namespace
+inline std::string unqualify(const std::string& name)
+{
+  auto pos = name.find_last_of(':');
+  if (pos != std::string::npos)
+    return name.substr(pos + 1);
+  else
+    return name;
+}
+
+// use it to get the exact type of T in the error message
+template<class T>
+struct check_type
+{
+	using fail = typename std::enable_if<false, T>::type;
+};
+
+template<typename... Ts> struct make_void { typedef void type;};
+template<typename... Ts> using void_t = typename make_void<Ts...>::type;
+
 } // types
 
 #endif

@@ -47,6 +47,7 @@
 //#include <iostream>
 //#include <streambuf>
 //#include <string>
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <limits>
@@ -206,6 +207,68 @@ public:
 } // namespace types
 
 namespace strings {
+
+// Analogues of std::begin,end but work properly with zero-terminated strings
+
+template<class String>
+auto begin(String& s)
+{
+	return std::begin(s);
+}
+
+template<class String>
+auto end(const String& s) -> decltype(s.end())
+{
+	return s.end();
+}
+
+template<class Char, std::size_t N>
+Char* end(Char (&s)[N]) noexcept
+{
+	if (N == 0)
+		return &s[0];
+
+	if (s[N-1] == Char{})
+		return &s[N-1];
+	else
+		return &s[N];
+}
+
+template<class String, class Fun>
+void for_each_substr(const String& str, char delim, Fun fun) 
+{
+	std::size_t start = 0;
+	std::size_t stop = str.find(delim);
+	while (stop != std::string::npos)
+	{
+		if (stop > 0) {
+			fun(&str[start], &str[stop], false);
+		}
+		start = stop + 1;
+		stop = str.find(delim, start);
+	}
+	if (start < str.length())
+		fun(&str[start], &str.back() + 1, true /* marker "last" */);
+}
+
+template<class String1, class String2, class Fun>
+void for_each_substr(const String1& str, const String2& delim, Fun fun)
+{
+	std::string::const_iterator start, stop;
+	start = str.begin();
+	while(start != str.end())
+	{
+		stop = std::search(start, str.end(), begin(delim), end(delim));
+		if (stop == str.end()) {
+			fun(&*start, &*stop, true);
+			break;
+		}
+
+		if (stop != str.begin())
+			fun(&*start, &*stop, false);
+		start = stop + std::distance(begin(delim), end(delim));
+	}
+}
 
 template<
   class CharT,

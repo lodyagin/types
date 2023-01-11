@@ -50,7 +50,7 @@
 #include <ctime>
 #include <iomanip>
 #include <tuple>
-#include "types/string.h"
+//#include "types/string.h"
 
 #ifndef COHORS_TYPES_TIME_H_
 #define COHORS_TYPES_TIME_H_
@@ -149,10 +149,9 @@ To round_down(const std::chrono::duration<Rep, Period>& d)
 //! FIXME: leap seconds 
 //! (convert by the table at
 //! http://en.wikipedia.org/wiki/Leap_seconds)
-template <class Duration>
+template <class Duration, class Clock>
 std::tm make_utc_tm(
-  std::chrono::time_point
-    <std::chrono::system_clock, Duration> tp
+  std::chrono::time_point<Clock, Duration> tp
 )
 {
     using namespace std;
@@ -193,7 +192,7 @@ std::tm make_utc_tm(
     tm.tm_sec = duration_cast<seconds>(t).count();
     return tm;
 }
-
+#if 1
 //! Log the current time when output to a stream
 template<class CharT, class Clock, size_t slen>
 class timestamp_t
@@ -221,7 +220,7 @@ timestamp_t<wchar_t, Clock, slen> timestamp(
 {
   return timestamp_t<wchar_t, Clock, slen>(s);
 }
-
+#endif
 //! seconds from the last midnight
 template < 
   class Clock,
@@ -248,22 +247,22 @@ struct put_time_t
   using time_point = std::chrono::time_point<Clock, Duration>;
 
   template<size_t N>
-  put_time_t(const time_point& p, const CharT(&f)[N]) 
-    : point(p), format(f) 
+  put_time_t(const time_point& p, const CharT(&f)[N], int frac) 
+    : point(p), format(f), fraction(frac) 
   {}
-
+#if 1
   put_time_t(
     const time_point& p, 
-    strings::constexpr_string f
+    strings::constexpr_string f,
+		int frac
   ) 
-    : point(p), format(f.c_str()) 
+    : point(p), format(f.c_str()), fraction(frac)
   {}
-
+#endif
   const time_point point;
   const CharT* format;
+	int fraction;
 };
-
-} // times
 
 template<
   class CharT, 
@@ -271,14 +270,15 @@ template<
   class Duration = typename Clock::duration,
   uint8_t N = 0
 >
-::times::put_time_t<CharT, Clock, Duration> 
+put_time_t<CharT, Clock, Duration> 
 put_time(
   const std::chrono::time_point<Clock, Duration>& time, 
-  const CharT(&format)[N]
+  const CharT(&format)[N],
+	int fraction
 )
 {
   return ::times::put_time_t<CharT, Clock, Duration>
-    (time, format);
+    (time, format, fraction);
 }
 
 template<
@@ -286,7 +286,7 @@ template<
   class Clock,
   class Duration = typename Clock::duration
 >
-::times::put_time_t<CharT, Clock, Duration> 
+put_time_t<CharT, Clock, Duration> 
 put_time(
   const std::chrono::time_point<Clock, Duration>& time, 
   const strings::basic_constexpr_string<CharT> format
@@ -296,7 +296,6 @@ put_time(
     (time, format);
 }
 
-namespace times {
 
 template<
   class CharT, 
@@ -324,6 +323,32 @@ void put_time(
   );
 
   if (end.failed())
+	{
+    out.setstate(std::ios_base::badbit);
+		return;
+	}
+	if (t.fraction <= 0)
+		return;
+	
+	using rep = typename Duration::rep;
+	//using ns_duration = std::chrono::duration<rep, std::nano>;
+	using frac_time_point = std::chrono::time_point<Clock, Duration>;
+	using s_duration = std::chrono::duration<rep, std::ratio<1>>;
+	const rep fraction = (frac_time_point{t.point} - std::chrono::time_point_cast<s_duration>(t.point)).count();
+	using num_put = std::num_put<CharT, iterator>;
+
+	auto it2 = iterator(out.rdbuf());
+	*it2++ = '.';
+
+	out.width(t.fraction);
+	const auto& np = std::use_facet<num_put>(out.getloc());
+	const iterator end2 = np.put(
+		it2,
+		out,
+		'0',
+		fraction
+	);
+  if (end2.failed())
     out.setstate(std::ios_base::badbit);
 }
 
@@ -337,10 +362,8 @@ void put_time(
   const ::times::timestamp_t<CharT, Clock, slen>& ts
 )
 {
-  put_time(out, ::put_time(Clock::now(), ts.format));
+  put_time(out, put_time(Clock::now(), ts.format));
 }
-
-} // times
 
 template<
   class CharT, 
@@ -370,5 +393,7 @@ std::basic_ostream<CharT>& operator<<(
   ::times::put_time(out, ts);
   return out;
 }
+
+} // times
 
 #endif
