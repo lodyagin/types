@@ -37,6 +37,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+// This represents irregular cells sequence
+
 #ifndef TYPES_SEQUENCE_H
 #define TYPES_SEQUENCE_H
 
