@@ -43,6 +43,8 @@
 #ifndef TYPES_TYPEINFO_H
 #define TYPES_TYPEINFO_H
 
+#include <cassert>
+#include <string>
 #include <typeinfo>
 #include <typeindex>
 #ifndef _WIN32
