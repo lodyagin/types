@@ -134,6 +134,15 @@ public:
 			_preload_stop = (*_preloader)(_address);
 	}
 
+	const_iterator shifted_iterator(std::ptrdiff_t shift) const
+	{
+		return const_iterator(
+			(pointer)((const char*) _address + shift),
+			_stop_address,
+			_preloader
+		);
+	}
+
 protected:
 	pointer _address = no_address();
 	pointer _stop_address = no_address();
