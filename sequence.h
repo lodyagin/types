@@ -47,7 +47,7 @@
 namespace types
 {
 
-namespace sequence
+namespace forward_sequence
 {
 
 //typedef const void* (*preload_callback)(const void* start);
@@ -81,7 +81,7 @@ public:
 	const_iterator& operator++()
 	{
 		const pointer new_address = navigator_type::forward(_address);
-		if (new_address > _address)
+		if (new_address > _address && new_address <= _stop_address)
 			_address = new_address;
 		else
 			_address = _stop_address; // to prevent an infinite loop
@@ -164,7 +164,7 @@ public:
 	
 	// Container part
 	
-	using const_iterator = sequence::const_iterator<navigator_type, preloader_type>;
+	using const_iterator = forward_sequence::const_iterator<navigator_type, preloader_type>;
 	using iterator = const_iterator;
 	using reference = typename iterator::reference;
 	using const_reference = typename const_iterator::reference;
@@ -225,8 +225,267 @@ protected:
 	};
 };
 
-} // namespace sequence
+} // namespace forward_sequence
  
+namespace bidirectional_sequence
+{
+
+//typedef const void* (*preload_callback)(const void* start);
+
+template<class Navigator, class Preloader>
+class const_iterator : public forward_sequence::const_iterator<Navigator, Preloader>
+{
+	using base = forward_sequence::const_iterator<Navigator, Preloader>;
+public:
+	using navigator_type = Navigator;
+	using preloader_type = Preloader;
+	using size_type = typename base::size_type;
+	using difference_type = typename base::difference_type;
+	using value_type = typename base::value_type;
+	using pointer = typename base::pointer;
+	using reference = typename base::reference;
+	using iterator_category = typename base::iterator_category;
+
+	using base::no_address;
+	
+	// LegacyBidirectionalIterator part
+
+	const_iterator& operator--()
+	{
+		const pointer new_address = navigator_type::backward(this->_address);
+		if (new_address < this->_address && new_address >= this->_start_address)
+			this->_address = new_address;
+		else
+			this->_address = this->_start_address; // to prevent an infinite loop
+		
+		return *this;
+	}
+
+	const_iterator operator--(int)
+	{
+		const auto copy = *this;
+		--(*this);
+		return copy;
+	}
+
+	const_iterator(
+		pointer addr,
+		pointer start_addr,
+		pointer stop_addr,
+		const preloader_type* preloader
+	) noexcept
+		: base::const_iterator(addr, stop_addr, preloader),
+			_start_address(start_addr)
+	{
+	}
+	
+protected:
+	pointer _start_address = no_address();
+};
+
+template<class Navigator, class Preloader = forward_sequence::no_preloader>
+class type : public forward_sequence::type<Navigator, Preloader>
+{
+	using base = forward_sequence::type<Navigator, Preloader>;
+public:
+	using navigator_type = Navigator;
+	using preloader_type = Preloader;
+
+	using const_iterator = bidirectional_sequence::const_iterator<navigator_type, preloader_type>;
+	using iterator = const_iterator;
+	using reference = typename iterator::reference;
+	using const_reference = typename const_iterator::reference;
+	using pointer = typename iterator::pointer;
+	using difference_type = typename iterator::difference_type;
+	using size_type = typename iterator::size_type;
+
+	using base::base;
+
+	iterator begin() const noexcept
+	{
+		return iterator(this->_start_address, this->_start_address, this->_stop_address, &this->_preloader);
+	}
+	
+	iterator end() const noexcept
+	{
+		return iterator(this->_stop_address, this->_start_address, this->_stop_address, nullptr);
+	}
+
+	const_iterator cbegin() const noexcept { return begin(); }
+
+	const_iterator cend() const noexcept { return end(); }
+
+};
+
+} // namespace bidirectional_sequence
+ 
+namespace random_access_sequence
+{
+
+//typedef const void* (*preload_callback)(const void* start);
+
+template<class Navigator, class Preloader>
+class const_iterator : public bidirectional_sequence::const_iterator<Navigator, Preloader>
+{
+	using base = bidirectional_sequence::const_iterator<Navigator, Preloader>;
+public:
+	using navigator_type = Navigator;
+	using preloader_type = Preloader;
+	using size_type = typename base::size_type;
+	using difference_type = typename base::difference_type;
+	using value_type = typename base::value_type;
+	using pointer = typename base::pointer;
+	using reference = typename base::reference;
+	using iterator_category = typename base::iterator_category;
+
+	using base::base;
+	using base::no_address;
+	
+	// LegacyRandomAccessIterator part
+
+	const_iterator& operator+=(difference_type n)
+	{
+		const pointer new_address = navigator_type::forward(this->_address, n);
+		if (new_address > this->_address) {
+			if (new_address <= this->_stop_address) {
+				this->_address = new_address;
+
+				if (this->_preloader != nullptr && this->_address > this->_preload_stop)
+					this->_preload_stop = (*this->_preloader)(this->_address);
+			}
+			else
+				this->_address = this->_stop_address;
+
+		}
+		else if (new_address <= this->_address) {
+			if (new_address >= this->_start_address)
+				this->_address = new_address;
+			else
+				this->_address = this->_start_address;
+		}
+		else
+			this->_address = this->_stop_address; // to prevent an infinite loop
+		
+		return *this;
+	}
+
+	const_iterator operator+(difference_type n) const
+	{
+		auto copy = *this;
+		return copy += n;
+	}
+	
+	const_iterator& operator-=(difference_type n)
+	{
+		return operator+=(-n);
+	}
+
+	const_iterator operator-(difference_type n) const
+	{
+		auto copy = *this;
+		return copy -= n;
+	}
+
+	difference_type operator-(const const_iterator& b) const
+	{
+		return this->_address - b._address;
+	}
+
+	reference operator[](difference_type n)
+	{
+		return *(*this + n);
+	}
+
+	constexpr bool operator<(const const_iterator& b) const noexcept
+	{
+		if (b._address == no_address()) {
+			return false;
+		}
+		else {
+			if (this->_address == no_address())
+				return true;
+			else
+				return this->_address < b._address;
+		}
+	}
+
+	constexpr bool operator>(const const_iterator& b) const noexcept
+	{
+		if (this->_address == no_address()) {
+			return false;
+		}
+		else {
+			if (b._address == no_address())
+				return true;
+			else
+				return this->_address < b._address;
+		}
+	}
+
+	constexpr bool operator<=(const const_iterator& b) const noexcept
+	{
+		return !operator>(b);
+	}
+	
+	constexpr bool operator>=(const const_iterator& b) const noexcept
+	{
+		return !operator<(b);
+	}
+};
+
+template<class Navigator, class Preloader>
+const_iterator<Navigator, Preloader> operator+(typename const_iterator<Navigator, Preloader>::difference_type n, const const_iterator<Navigator, Preloader>&a)
+{
+	return a + n;
+}
+
+template<class Navigator, class Preloader = forward_sequence::no_preloader>
+class type : public bidirectional_sequence::type<Navigator, Preloader>
+{
+	using base = bidirectional_sequence::type<Navigator, Preloader>;
+public:
+	using navigator_type = Navigator;
+	using preloader_type = Preloader;
+
+	using const_iterator = random_access_sequence::const_iterator<navigator_type, preloader_type>;
+	using iterator = const_iterator;
+	using reference = typename iterator::reference;
+	using const_reference = typename const_iterator::reference;
+	using pointer = typename iterator::pointer;
+	using difference_type = typename iterator::difference_type;
+	using size_type = typename iterator::size_type;
+
+	using base::base;
+	
+	iterator begin() const noexcept
+	{
+		return iterator(this->_start_address, this->_start_address, this->_stop_address, &this->_preloader);
+	}
+	
+	iterator end() const noexcept
+	{
+		return iterator(this->_stop_address, this->_start_address, this->_stop_address, nullptr);
+	}
+
+	const_iterator cbegin() const noexcept { return begin(); }
+
+	const_iterator cend() const noexcept { return end(); }
+
+	size_type size() const
+	{
+		return cend() - cbegin();
+	}
+};
+
+} // namespace random_access_sequence
+
+namespace congiguous_sequence
+{
+
+
+
+} // namespace contiguous_sequence
+
 } // namespace types
 
 #endif // TYPES_SEQUENCE_H
