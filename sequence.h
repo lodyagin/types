@@ -42,6 +42,7 @@
 #ifndef TYPES_SEQUENCE_H
 #define TYPES_SEQUENCE_H
 
+#include <iterator>
 #include <utility>
 
 namespace types
@@ -65,7 +66,7 @@ public:
 	using value_type = typename navigator_type::value_type;
 	using pointer = const value_type*;
 	using reference = const value_type&;
-	using iterator_category = typename navigator_type::iterator_category;
+	//using iterator_category = typename navigator_type::iterator_category;
 	
 	bool is_valid() const noexcept
 	{
@@ -74,6 +75,11 @@ public:
 	}
 	
 	reference operator*() noexcept
+	{
+		return *_address;
+	}
+
+	reference operator*() const noexcept
 	{
 		return *_address;
 	}
@@ -90,6 +96,13 @@ public:
 			_preload_stop = (*_preloader)(_address);
 		
 		return *this;
+	}
+
+	const_iterator operator++(int)
+	{
+		const_iterator copy = *this;
+		++(*this);
+		return copy;
 	}
 
 	// LeagacyForwardIterator part
@@ -113,13 +126,6 @@ public:
 		return _address;
 	}
 
-	const_iterator operator++(int)
-	{
-		const auto copy = *this;
-		++(*this);
-		return copy;
-	}
-	
 	static constexpr pointer no_address()
 	{
 		return (pointer) navigator_type::no_address();
@@ -154,6 +160,24 @@ struct no_preloader
 {
 	constexpr const void* operator()(const void*) const { return nullptr; }
 };
+
+// Is reqiured for the following concept test
+struct char_navigator
+{
+	using size_type = std::size_t;
+	using difference_type = std::ptrdiff_t;
+	using value_type = char;
+	//using iterator_category = std::forward_iterator_tag;
+
+	static const char* forward(const char* cur) noexcept
+	{
+		return cur + 1;
+	}
+
+	static constexpr const void* no_address() { return nullptr; }
+};
+
+static_assert(std::forward_iterator<const_iterator<char_navigator, no_preloader>>);
 
 template<class Navigator, class Preloader = no_preloader>
 class type
@@ -244,12 +268,22 @@ public:
 	using value_type = typename base::value_type;
 	using pointer = typename base::pointer;
 	using reference = typename base::reference;
-	using iterator_category = typename base::iterator_category;
+	//using iterator_category = typename base::iterator_category;
 
-	using base::no_address;
+	using base::base;
 	
-	// LegacyBidirectionalIterator part
+	using base::no_address;
 
+	const_iterator& operator++()
+	{
+		return static_cast<const_iterator&>(base::operator++());
+	}
+
+	const_iterator operator++(int)
+	{
+		return static_cast<const_iterator>(base::operator++(0));
+	}
+	
 	const_iterator& operator--()
 	{
 		const pointer new_address = navigator_type::backward(this->_address);
@@ -282,6 +316,8 @@ public:
 protected:
 	pointer _start_address = no_address();
 };
+
+static_assert(std::bidirectional_iterator<const_iterator<forward_sequence::char_navigator, forward_sequence::no_preloader>>);
 
 template<class Navigator, class Preloader = forward_sequence::no_preloader>
 class type : public forward_sequence::type<Navigator, Preloader>
@@ -336,13 +372,31 @@ public:
 	using value_type = typename base::value_type;
 	using pointer = typename base::pointer;
 	using reference = typename base::reference;
-	using iterator_category = typename base::iterator_category;
+	//using iterator_category = typename base::iterator_category;
 
 	using base::base;
 	using base::no_address;
 	
-	// LegacyRandomAccessIterator part
+	const_iterator& operator++()
+	{
+		return static_cast<const_iterator&>(base::operator++());
+	}
 
+	const_iterator operator++(int)
+	{
+		return static_cast<const_iterator>(base::operator++(0));
+	}
+	
+	const_iterator& operator--()
+	{
+		return static_cast<const_iterator&>(base::operator--());
+	}
+
+	const_iterator operator--(int)
+	{
+		return static_cast<const_iterator>(base::operator--(0));
+	}
+	
 	const_iterator& operator+=(difference_type n)
 	{
 		const pointer new_address = navigator_type::forward(this->_address, n);
@@ -396,6 +450,11 @@ public:
 		return *(*this + n);
 	}
 
+	reference operator[](difference_type n) const
+	{
+		return *(*this + n);
+	}
+
 	constexpr bool operator<(const const_iterator& b) const noexcept
 	{
 		if (b._address == no_address()) {
@@ -438,6 +497,8 @@ const_iterator<Navigator, Preloader> operator+(typename const_iterator<Navigator
 {
 	return a + n;
 }
+
+static_assert(std::random_access_iterator<const_iterator<forward_sequence::char_navigator, forward_sequence::no_preloader>>);
 
 template<class Navigator, class Preloader = forward_sequence::no_preloader>
 class type : public bidirectional_sequence::type<Navigator, Preloader>
