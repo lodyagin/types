@@ -51,27 +51,44 @@ namespace types
 namespace forward_sequence
 {
 
-//typedef const void* (*preload_callback)(const void* start);
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+struct no_preloader
+{
+	constexpr const void* operator()(const void*) const { return nullptr; }
+};
+#endif
 
-template<class Navigator, class Preloader>
+template<
+	class Navigator
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+	, class Preloader = no_preloader
+#endif
+>
 class const_iterator
 {
 public:
-	// LeagacyIterator part
-	
 	using navigator_type = Navigator;
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
 	using preloader_type = Preloader;
+#endif
 	using size_type = typename navigator_type::size_type;
 	using difference_type = typename navigator_type::difference_type;
 	using value_type = typename navigator_type::value_type;
 	using pointer = const value_type*;
 	using reference = const value_type&;
-	//using iterator_category = typename navigator_type::iterator_category;
 	
 	bool is_valid() const noexcept
 	{
-		return _address != no_address() && _stop_address != no_address()
-			&& navigator_type::is_valid_cell(_address, _stop_address);
+		return _address != no_address()
+#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
+			&& _stop_address != no_address()
+#endif
+			&& navigator_type::is_valid_cell(
+				_address
+#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
+				, _stop_address
+#endif
+			);
 	}
 	
 	reference operator*() noexcept
@@ -87,13 +104,19 @@ public:
 	const_iterator& operator++()
 	{
 		const pointer new_address = navigator_type::forward(_address);
+#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 		if (new_address > _address && new_address <= _stop_address)
 			_address = new_address;
 		else
 			_address = _stop_address; // to prevent an infinite loop
+#else
+		_address = new_address;
+#endif
 
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
 		if (_preloader != nullptr && _address > _preload_stop)
 			_preload_stop = (*_preloader)(_address);
+#endif
 		
 		return *this;
 	}
@@ -105,11 +128,11 @@ public:
 		return copy;
 	}
 
-	// LeagacyForwardIterator part
-	
 	constexpr const_iterator() noexcept {}
 
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
 	const void* dummy_preloader(const void*) { return nullptr; }
+#endif
 	
 	constexpr bool operator==(const const_iterator& o) const noexcept
 	{
@@ -133,32 +156,51 @@ public:
 
 	// extended definitions
 	
-	const_iterator(pointer addr, pointer stop_addr, const preloader_type* preloader) noexcept
-		: _address(addr), _stop_address(stop_addr), _preloader(preloader)
+	const_iterator(
+		pointer addr
+#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
+		, pointer stop_addr
+#endif
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+		, const preloader_type* preloader
+#endif
+	) noexcept
+		: _address(addr)
+#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
+		, _stop_address(stop_addr)
+#endif
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+		, _preloader(preloader)
+#endif
 	{
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
 		if (_preloader != nullptr && _address != no_address())
 			_preload_stop = (*_preloader)(_address);
+#endif
 	}
 
 	const_iterator shifted_iterator(std::ptrdiff_t shift) const
 	{
 		return const_iterator(
-			(pointer)((const char*) _address + shift),
-			_stop_address,
-			_preloader
+			(pointer)((const char*) _address + shift)
+#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
+			, _stop_address
+#endif
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+			, _preloader
+#endif
 		);
 	}
 
 protected:
 	pointer _address = no_address();
+#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 	pointer _stop_address = no_address();
+#endif
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
 	const preloader_type* _preloader = nullptr;
 	const void* _preload_stop = nullptr;
-};
-
-struct no_preloader
-{
-	constexpr const void* operator()(const void*) const { return nullptr; }
+#endif
 };
 
 // Is reqiured for the following concept test
@@ -177,18 +219,39 @@ struct char_navigator
 	static constexpr const void* no_address() { return nullptr; }
 };
 
-static_assert(std::forward_iterator<const_iterator<char_navigator, no_preloader>>);
+static_assert(
+	std::forward_iterator<
+    const_iterator<
+	    char_navigator
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+	    , no_preloader
+#endif
+	  >
+	>
+);
 
-template<class Navigator, class Preloader = no_preloader>
+template<
+	class Navigator
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+	, class Preloader = no_preloader
+#endif
+>
 class type
 {
 public:
 	using navigator_type = Navigator;
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
 	using preloader_type = Preloader;
+#endif
 	
 	// Container part
 	
-	using const_iterator = forward_sequence::const_iterator<navigator_type, preloader_type>;
+	using const_iterator = forward_sequence::const_iterator<
+		navigator_type
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+		, preloader_type
+#endif
+	>;
 	using iterator = const_iterator;
 	using reference = typename iterator::reference;
 	using const_reference = typename const_iterator::reference;
@@ -196,18 +259,43 @@ public:
 	using difference_type = typename iterator::difference_type;
 	using size_type = typename iterator::size_type;
 
-	constexpr type(pointer start, pointer stop, preloader_type preloader = no_preloader{}) noexcept
-		: _start_address(start), _stop_address(stop), _preloader(preloader)
+	constexpr type(
+		pointer start,
+		pointer stop
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+		, preloader_type preloader = no_preloader{}
+#endif
+	) noexcept
+		: _start_address(start), _stop_address(stop)
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+		, _preloader(preloader)
+#endif
 	{}
 	
 	iterator begin() const noexcept
 	{
-		return iterator(_start_address, _stop_address, &_preloader);
+		return iterator(
+			_start_address
+#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
+			, _stop_address
+#endif
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+			, &_preloader
+#endif
+		);
 	}
 	
 	iterator end() const noexcept
 	{
-		return iterator(_stop_address, _stop_address, nullptr);
+		return iterator(
+			_stop_address
+#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
+			, _stop_address
+#endif
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+			, nullptr
+#endif
+		);
 	}
 
 	const_iterator cbegin() const noexcept { return begin(); }
@@ -232,7 +320,9 @@ public:
 protected:
 	pointer _start_address = nullptr;
 	pointer _stop_address = nullptr;
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
 	preloader_type _preloader;
+#endif
 	
 	struct size_calculator
 	{
@@ -256,19 +346,36 @@ namespace bidirectional_sequence
 
 //typedef const void* (*preload_callback)(const void* start);
 
-template<class Navigator, class Preloader>
-class const_iterator : public forward_sequence::const_iterator<Navigator, Preloader>
+template<
+	class Navigator
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+	, class Preloader = forward_sequence::no_preloader
+#endif
+>
+class const_iterator : public forward_sequence::const_iterator<
+	Navigator
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+	, Preloader
+#endif
+>
 {
-	using base = forward_sequence::const_iterator<Navigator, Preloader>;
+	using base = forward_sequence::const_iterator<
+		Navigator
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+		, Preloader
+#endif
+	>;
+	
 public:
 	using navigator_type = Navigator;
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
 	using preloader_type = Preloader;
+#endif
 	using size_type = typename base::size_type;
 	using difference_type = typename base::difference_type;
 	using value_type = typename base::value_type;
 	using pointer = typename base::pointer;
 	using reference = typename base::reference;
-	//using iterator_category = typename base::iterator_category;
 
 	using base::base;
 	
@@ -287,10 +394,14 @@ public:
 	const_iterator& operator--()
 	{
 		const pointer new_address = navigator_type::backward(this->_address);
+#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 		if (new_address < this->_address && new_address >= this->_start_address)
 			this->_address = new_address;
 		else
 			this->_address = this->_start_address; // to prevent an infinite loop
+#else
+		this->_address = new_address;
+#endif
 		
 		return *this;
 	}
@@ -303,31 +414,78 @@ public:
 	}
 
 	const_iterator(
-		pointer addr,
-		pointer start_addr,
-		pointer stop_addr,
-		const preloader_type* preloader
+		pointer addr
+#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
+		, pointer start_addr
+		, pointer stop_addr
+#endif
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+		, const preloader_type* preloader
+#endif
 	) noexcept
-		: base::const_iterator(addr, stop_addr, preloader),
-			_start_address(start_addr)
+		: base::const_iterator(
+			  addr
+#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
+				, stop_addr
+#endif
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+				, preloader
+#endif
+		  )
+#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
+		  , _start_address(start_addr)
+#endif
 	{
 	}
 	
 protected:
+#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 	pointer _start_address = no_address();
+#endif
 };
 
-static_assert(std::bidirectional_iterator<const_iterator<forward_sequence::char_navigator, forward_sequence::no_preloader>>);
+static_assert(
+	std::bidirectional_iterator<
+	   const_iterator<
+	      forward_sequence::char_navigator
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+	      , forward_sequence::no_preloader
+#endif
+	   >
+	>
+);
 
-template<class Navigator, class Preloader = forward_sequence::no_preloader>
-class type : public forward_sequence::type<Navigator, Preloader>
+template<
+	class Navigator
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+	, class Preloader = forward_sequence::no_preloader
+#endif
+>
+class type : public forward_sequence::type<
+	Navigator
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+	, Preloader
+#endif
+>
 {
-	using base = forward_sequence::type<Navigator, Preloader>;
+	using base = forward_sequence::type<
+		Navigator
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+		, Preloader
+#endif
+	>;
 public:
 	using navigator_type = Navigator;
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
 	using preloader_type = Preloader;
+#endif
 
-	using const_iterator = bidirectional_sequence::const_iterator<navigator_type, preloader_type>;
+	using const_iterator = bidirectional_sequence::const_iterator<
+		navigator_type
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+		, preloader_type
+#endif
+	>;
 	using iterator = const_iterator;
 	using reference = typename iterator::reference;
 	using const_reference = typename const_iterator::reference;
@@ -339,12 +497,30 @@ public:
 
 	iterator begin() const noexcept
 	{
-		return iterator(this->_start_address, this->_start_address, this->_stop_address, &this->_preloader);
+		return iterator(
+			this->_start_address
+#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
+			, this->_start_address
+			, this->_stop_address
+#endif
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+			, &this->_preloader
+#endif
+		);
 	}
 	
 	iterator end() const noexcept
 	{
-		return iterator(this->_stop_address, this->_start_address, this->_stop_address, nullptr);
+		return iterator(
+			this->_stop_address
+#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
+			, this->_start_address
+			, this->_stop_address
+#endif
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+			, nullptr
+#endif
+		);
 	}
 
 	const_iterator cbegin() const noexcept { return begin(); }
@@ -360,19 +536,36 @@ namespace random_access_sequence
 
 //typedef const void* (*preload_callback)(const void* start);
 
-template<class Navigator, class Preloader>
-class const_iterator : public bidirectional_sequence::const_iterator<Navigator, Preloader>
+template<
+	class Navigator
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+	, class Preloader = forward_sequence::no_preloader
+#endif
+>
+class const_iterator : public bidirectional_sequence::const_iterator<
+	Navigator
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+	, Preloader
+#endif
+>
 {
-	using base = bidirectional_sequence::const_iterator<Navigator, Preloader>;
+	using base = bidirectional_sequence::const_iterator<
+		Navigator
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+		, Preloader
+#endif
+	>;
+	
 public:
 	using navigator_type = Navigator;
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
 	using preloader_type = Preloader;
+#endif
 	using size_type = typename base::size_type;
 	using difference_type = typename base::difference_type;
 	using value_type = typename base::value_type;
 	using pointer = typename base::pointer;
 	using reference = typename base::reference;
-	//using iterator_category = typename base::iterator_category;
 
 	using base::base;
 	using base::no_address;
@@ -400,16 +593,18 @@ public:
 	const_iterator& operator+=(difference_type n)
 	{
 		const pointer new_address = navigator_type::forward(this->_address, n);
+#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 		if (new_address > this->_address) {
 			if (new_address <= this->_stop_address) {
 				this->_address = new_address;
 
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
 				if (this->_preloader != nullptr && this->_address > this->_preload_stop)
 					this->_preload_stop = (*this->_preloader)(this->_address);
+#endif
 			}
 			else
 				this->_address = this->_stop_address;
-
 		}
 		else if (new_address <= this->_address) {
 			if (new_address >= this->_start_address)
@@ -419,6 +614,9 @@ public:
 		}
 		else
 			this->_address = this->_stop_address; // to prevent an infinite loop
+#else
+		this->_address = new_address;
+#endif
 		
 		return *this;
 	}
@@ -492,23 +690,77 @@ public:
 	}
 };
 
-template<class Navigator, class Preloader>
-const_iterator<Navigator, Preloader> operator+(typename const_iterator<Navigator, Preloader>::difference_type n, const const_iterator<Navigator, Preloader>&a)
+template<
+	class Navigator
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+	, class Preloader = forward_sequence::no_preloader
+#endif
+>
+const_iterator<
+	Navigator
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+	, Preloader
+#endif
+> operator+(
+	typename const_iterator<
+	   Navigator
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+	   , Preloader
+#endif
+	>::difference_type n,
+	const const_iterator<
+	   Navigator
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+	   , Preloader
+#endif
+	>&a
+)
 {
 	return a + n;
 }
 
-static_assert(std::random_access_iterator<const_iterator<forward_sequence::char_navigator, forward_sequence::no_preloader>>);
+static_assert(
+	std::random_access_iterator<
+	   const_iterator<
+	      forward_sequence::char_navigator
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+	      , forward_sequence::no_preloader
+#endif
+	   >
+	>
+);
 
-template<class Navigator, class Preloader = forward_sequence::no_preloader>
-class type : public bidirectional_sequence::type<Navigator, Preloader>
+template<
+	class Navigator
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+	, class Preloader = forward_sequence::no_preloader
+#endif
+>
+class type : public bidirectional_sequence::type<
+	Navigator
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+	, Preloader
+#endif
+>
 {
-	using base = bidirectional_sequence::type<Navigator, Preloader>;
+	using base = bidirectional_sequence::type<
+		Navigator
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+		, Preloader
+#endif
+	>;
 public:
 	using navigator_type = Navigator;
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
 	using preloader_type = Preloader;
+#endif
 
-	using const_iterator = random_access_sequence::const_iterator<navigator_type, preloader_type>;
+	using const_iterator = random_access_sequence::const_iterator<
+		navigator_type
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+		, preloader_type
+#endif
+	>;
 	using iterator = const_iterator;
 	using reference = typename iterator::reference;
 	using const_reference = typename const_iterator::reference;
@@ -520,12 +772,30 @@ public:
 	
 	iterator begin() const noexcept
 	{
-		return iterator(this->_start_address, this->_start_address, this->_stop_address, &this->_preloader);
+		return iterator(
+			this->_start_address
+#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
+			, this->_start_address
+			, this->_stop_address
+#endif
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+			, &this->_preloader
+#endif
+		);
 	}
 	
 	iterator end() const noexcept
 	{
-		return iterator(this->_stop_address, this->_start_address, this->_stop_address, nullptr);
+		return iterator(
+			this->_stop_address
+#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
+			, this->_start_address
+			, this->_stop_address
+#endif
+#ifndef TYPES_SEQUENCE_NO_PRELOADER
+			, nullptr
+#endif
+		);
 	}
 
 	const_iterator cbegin() const noexcept { return begin(); }
