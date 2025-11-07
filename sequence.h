@@ -80,14 +80,10 @@ public:
 	bool is_valid() const noexcept
 	{
 		return _address != no_address()
-#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 			&& _stop_address != no_address()
-#endif
 			&& navigator_type::is_valid_cell(
 				_address
-#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 				, _stop_address
-#endif
 			);
 	}
 	
@@ -103,7 +99,9 @@ public:
 
 	const_iterator& operator++()
 	{
-		const pointer new_address = navigator_type::forward(_address);
+		const pointer new_address = navigator_type::forward(
+			_address, _stop_address
+		);
 #ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 		if (new_address > _address && new_address <= _stop_address)
 			_address = new_address;
@@ -158,17 +156,13 @@ public:
 	
 	const_iterator(
 		pointer addr
-#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 		, pointer stop_addr
-#endif
 #ifndef TYPES_SEQUENCE_NO_PRELOADER
 		, const preloader_type* preloader
 #endif
 	) noexcept
 		: _address(addr)
-#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 		, _stop_address(stop_addr)
-#endif
 #ifndef TYPES_SEQUENCE_NO_PRELOADER
 		, _preloader(preloader)
 #endif
@@ -183,9 +177,7 @@ public:
 	{
 		return const_iterator(
 			(pointer)((const char*) _address + shift)
-#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 			, _stop_address
-#endif
 #ifndef TYPES_SEQUENCE_NO_PRELOADER
 			, _preloader
 #endif
@@ -194,9 +186,7 @@ public:
 
 protected:
 	pointer _address = no_address();
-#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 	pointer _stop_address = no_address();
-#endif
 #ifndef TYPES_SEQUENCE_NO_PRELOADER
 	const preloader_type* _preloader = nullptr;
 	const void* _preload_stop = nullptr;
@@ -211,7 +201,7 @@ struct char_navigator
 	using value_type = char;
 	//using iterator_category = std::forward_iterator_tag;
 
-	static const char* forward(const char* cur) noexcept
+	static const char* forward(const char* cur, const char*) noexcept
 	{
 		return cur + 1;
 	}
@@ -276,9 +266,7 @@ public:
 	{
 		return iterator(
 			_start_address
-#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 			, _stop_address
-#endif
 #ifndef TYPES_SEQUENCE_NO_PRELOADER
 			, &_preloader
 #endif
@@ -289,9 +277,7 @@ public:
 	{
 		return iterator(
 			_stop_address
-#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 			, _stop_address
-#endif
 #ifndef TYPES_SEQUENCE_NO_PRELOADER
 			, nullptr
 #endif
@@ -393,7 +379,9 @@ public:
 	
 	const_iterator& operator--()
 	{
-		const pointer new_address = navigator_type::backward(this->_address);
+		const pointer new_address = navigator_type::backward(
+			this->_address, this->_start_address
+		);
 #ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 		if (new_address < this->_address && new_address >= this->_start_address)
 			this->_address = new_address;
@@ -415,33 +403,25 @@ public:
 
 	const_iterator(
 		pointer addr
-#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 		, pointer start_addr
 		, pointer stop_addr
-#endif
 #ifndef TYPES_SEQUENCE_NO_PRELOADER
 		, const preloader_type* preloader
 #endif
 	) noexcept
 		: base::const_iterator(
 			  addr
-#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 				, stop_addr
-#endif
 #ifndef TYPES_SEQUENCE_NO_PRELOADER
 				, preloader
 #endif
 		  )
-#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 		  , _start_address(start_addr)
-#endif
 	{
 	}
 	
 protected:
-#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 	pointer _start_address = no_address();
-#endif
 };
 
 static_assert(
@@ -499,10 +479,8 @@ public:
 	{
 		return iterator(
 			this->_start_address
-#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 			, this->_start_address
 			, this->_stop_address
-#endif
 #ifndef TYPES_SEQUENCE_NO_PRELOADER
 			, &this->_preloader
 #endif
@@ -513,10 +491,8 @@ public:
 	{
 		return iterator(
 			this->_stop_address
-#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 			, this->_start_address
 			, this->_stop_address
-#endif
 #ifndef TYPES_SEQUENCE_NO_PRELOADER
 			, nullptr
 #endif
@@ -592,7 +568,9 @@ public:
 	
 	const_iterator& operator+=(difference_type n)
 	{
-		const pointer new_address = navigator_type::forward(this->_address, n);
+		const pointer new_address = navigator_type::forward(
+			this->_address, this->_start_address, this->_stop_address, n
+		);
 #ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 		if (new_address > this->_address) {
 			if (new_address <= this->_stop_address) {
@@ -774,10 +752,8 @@ public:
 	{
 		return iterator(
 			this->_start_address
-#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 			, this->_start_address
 			, this->_stop_address
-#endif
 #ifndef TYPES_SEQUENCE_NO_PRELOADER
 			, &this->_preloader
 #endif
@@ -788,10 +764,8 @@ public:
 	{
 		return iterator(
 			this->_stop_address
-#ifndef TYPES_SEQUENCE_NO_RANGE_CHECK
 			, this->_start_address
 			, this->_stop_address
-#endif
 #ifndef TYPES_SEQUENCE_NO_PRELOADER
 			, nullptr
 #endif
